@@ -1,0 +1,114 @@
+# Trader Backtest App - Antigravity IDE Rules
+# =============================================
+# This file configures AI behavior for the project
+
+# Core Identity
+project_name: Trader Backtest App
+version: 0.2.0
+stack: hybrid (Python + Next.js)
+
+# ============================================================
+# 🚫 FORBIDDEN PATTERNS
+# ============================================================
+# The AI is STRICTLY FORBIDDEN from suggesting or generating
+# code that uses these patterns for price/market data:
+
+forbidden_patterns:
+  - pattern: "random.uniform"
+    reason: "Mock price data violates Real Data Only policy"
+  - pattern: "random.randint"
+    reason: "Mock data generation forbidden"
+  - pattern: "np.random"
+    reason: "NumPy random for price simulation forbidden"
+  - pattern: "numpy.random"
+    reason: "NumPy random for price simulation forbidden"
+  - pattern: "faker"
+    reason: "Fake data generators forbidden for market data"
+  - pattern: "Math.random()"
+    reason: "JavaScript random for price data forbidden"
+  - pattern: "generateMockData"
+    reason: "Mock data functions forbidden"
+  - pattern: "mockOhlcv"
+    reason: "Mock OHLCV data forbidden"
+  - pattern: "fakePrice"
+    reason: "Fake price generation forbidden"
+
+# ============================================================
+# 🔒 PROTECTED DIRECTORIES
+# ============================================================
+# These directories are READ-ONLY for AI operations
+# Modification requires explicit "Sudo Override" command
+
+protected_directories:
+  - path: ".context_memory/"
+    access: "read-only"
+    override: "Sudo Override required"
+  - path: "prompts/"
+    access: "read-only"
+    override: "Sudo Override required"
+
+# ============================================================
+# ✅ REQUIRED PATTERNS
+# ============================================================
+# The AI should prefer these patterns for data fetching
+
+required_patterns:
+  market_data:
+    library: "ccxt"
+    exchange: "binance"
+    method: "fetch_ohlcv"
+    example: |
+      import ccxt
+      exchange = ccxt.binance()
+      ohlcv = exchange.fetch_ohlcv('BTC/USDT', '1h')
+
+# ============================================================
+# 📖 CONTEXT RECOVERY
+# ============================================================
+# When AI loses context, it should read these files FIRST
+
+context_recovery:
+  priority_files:
+    - ".context_memory/00_PROJECT_DNA.md"
+    - ".context_memory/03_FILE_MAP.md"
+  instruction: "Read these files before making any changes"
+
+# ============================================================
+# 🏗️ ARCHITECTURE RULES
+# ============================================================
+
+architecture:
+  frontend:
+    framework: "Next.js 15"
+    router: "App Router"
+    language: "TypeScript"
+    styling: "TailwindCSS"
+    ui_library: "Shadcn/UI"
+    charts: "lightweight-charts"
+    
+  backend:
+    framework: "FastAPI"
+    language: "Python 3.12"
+    data_library: "ccxt"
+    math_libraries: ["pandas", "numpy"]
+    
+  communication:
+    - "REST API"
+    - "WebSocket"
+
+# ============================================================
+# 🧠 AI BEHAVIOR
+# ============================================================
+
+ai_behavior:
+  principle: "AI calculates Logic, Python calculates Math"
+  
+  responsibilities:
+    ai:
+      - "Interpret trading strategies"
+      - "Identify patterns"
+      - "Make decisions"
+    python:
+      - "Execute mathematical calculations"
+      - "Run backtests"
+      - "Process numerical data"

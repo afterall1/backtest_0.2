@@ -1,0 +1,20 @@
+# Trader Backtest App - Python Dependencies
+# ==========================================
+# Real-data backtesting engine
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Data & Exchange
+ccxt>=4.1.0
+pandas>=2.1.0
+numpy>=1.26.0
+
+# Async Support
+aiohttp>=3.9.0
+asyncio>=3.4.3
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.5.0

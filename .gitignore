@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+frontend/node_modules/
 
 # Environment variables
 .env
@@ -24,6 +25,7 @@ Thumbs.db
 dist/
 build/
 .next/
+frontend/.next/
 out/
 
 # Logs
