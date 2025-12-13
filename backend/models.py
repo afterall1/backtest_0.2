@@ -4,7 +4,7 @@ Pydantic Models - Type Safety for Backtest Engine
 Strict data models enforcing structure throughout the pipeline.
 """
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Optional
 from enum import Enum
 
 
@@ -32,18 +32,6 @@ class Candle(BaseModel):
     low: float = Field(..., ge=0, description="Lowest price")
     close: float = Field(..., ge=0, description="Closing price")
     volume: float = Field(..., ge=0, description="Trading volume")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "time": 1702500000,
-                "open": 42150.50,
-                "high": 42300.00,
-                "low": 42100.00,
-                "close": 42250.75,
-                "volume": 1234.56
-            }
-        }
 
 
 class Trade(BaseModel):
@@ -58,70 +46,84 @@ class Trade(BaseModel):
     pnl_percent: float = Field(..., description="Profit/Loss percentage")
     type: TradeType = Field(..., description="Trade direction (long/short)")
     status: TradeStatus = Field(..., description="Trade outcome (win/loss)")
+
+
+class EquityPoint(BaseModel):
+    """Single point on equity curve for charting."""
+    time: int = Field(..., description="Unix timestamp in seconds")
+    equity: float = Field(..., description="Account balance at this time")
+
+
+class DrawdownPoint(BaseModel):
+    """Single point on drawdown curve."""
+    time: int = Field(..., description="Unix timestamp in seconds")
+    drawdown_pct: float = Field(..., description="Drawdown percentage")
+
+
+class PerformanceMetrics(BaseModel):
+    """
+    Professional trading performance metrics.
     
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "entry_time": 1702500000,
-                "exit_time": 1702503600,
-                "entry_price": 42150.50,
-                "exit_price": 42350.00,
-                "pnl": 199.50,
-                "pnl_percent": 0.47,
-                "type": "long",
-                "status": "win"
-            }
-        }
+    Annualized using 365 days (crypto standard).
+    """
+    # Risk-adjusted returns
+    sharpe_ratio: float = Field(..., description="Sharpe Ratio (annualized, 365 days)")
+    sortino_ratio: float = Field(..., description="Sortino Ratio (annualized)")
+    
+    # Drawdown
+    max_drawdown: float = Field(..., description="Maximum drawdown (absolute)")
+    max_drawdown_pct: float = Field(..., description="Maximum drawdown (%)")
+    
+    # Trade statistics
+    win_rate: float = Field(..., description="Win rate percentage")
+    profit_factor: float = Field(..., description="Gross Profit / |Gross Loss|")
+    
+    # Returns
+    total_return: float = Field(..., description="Net profit/loss")
+    total_return_pct: float = Field(..., description="Total return percentage")
+    
+    # Trade counts
+    total_trades: int = Field(..., ge=0, description="Total number of trades")
+    winning_trades: int = Field(..., ge=0, description="Number of winning trades")
+    losing_trades: int = Field(..., ge=0, description="Number of losing trades")
+    
+    # Profit/Loss
+    gross_profit: float = Field(..., description="Total profit from wins")
+    gross_loss: float = Field(..., description="Total loss from losses")
+    
+    # Average trade
+    avg_win: float = Field(..., description="Average winning trade")
+    avg_loss: float = Field(..., description="Average losing trade")
+    
+    # Final equity
+    final_equity: float = Field(..., description="Final account balance")
 
 
 class BacktestResult(BaseModel):
     """
-    Complete backtest simulation results.
+    Complete backtest simulation results with analytics.
     """
+    # Identifiers
     symbol: str = Field(..., description="Trading pair")
     timeframe: str = Field(..., description="Candle timeframe")
     strategy_name: str = Field(..., description="Strategy identifier")
+    initial_capital: float = Field(default=10000.0, description="Starting capital")
     
     # Performance Metrics
-    total_trades: int = Field(..., ge=0, description="Total number of trades")
-    winning_trades: int = Field(..., ge=0, description="Number of winning trades")
-    losing_trades: int = Field(..., ge=0, description="Number of losing trades")
-    win_rate: float = Field(..., ge=0, le=100, description="Win rate percentage")
+    metrics: PerformanceMetrics = Field(..., description="All performance metrics")
     
-    # Financial Metrics
-    net_profit: float = Field(..., description="Net profit/loss")
-    net_profit_percent: float = Field(..., description="Net profit percentage")
-    gross_profit: float = Field(..., ge=0, description="Total profit from wins")
-    gross_loss: float = Field(..., le=0, description="Total loss from losses")
-    
-    # Risk Metrics
-    max_drawdown: float = Field(..., le=0, description="Maximum drawdown")
-    max_drawdown_percent: float = Field(..., le=0, description="Maximum drawdown %")
-    profit_factor: float = Field(..., ge=0, description="Gross profit / Gross loss")
+    # Time series for charting
+    equity_curve: list[EquityPoint] = Field(
+        default_factory=list, 
+        description="Equity curve for charting"
+    )
+    drawdown_series: list[DrawdownPoint] = Field(
+        default_factory=list,
+        description="Drawdown percentage over time"
+    )
     
     # Trade Details
     trades: list[Trade] = Field(default_factory=list, description="List of all trades")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "symbol": "BTC/USDT",
-                "timeframe": "1h",
-                "strategy_name": "SMA Crossover",
-                "total_trades": 25,
-                "winning_trades": 15,
-                "losing_trades": 10,
-                "win_rate": 60.0,
-                "net_profit": 1250.50,
-                "net_profit_percent": 12.5,
-                "gross_profit": 2100.00,
-                "gross_loss": -849.50,
-                "max_drawdown": -450.00,
-                "max_drawdown_percent": -4.5,
-                "profit_factor": 2.47,
-                "trades": []
-            }
-        }
 
 
 class BacktestRequest(BaseModel):

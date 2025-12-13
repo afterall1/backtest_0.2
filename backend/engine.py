@@ -14,9 +14,11 @@ from typing import Optional
 import logging
 
 from models import (
-    Candle, Trade, BacktestResult,
-    TradeType, TradeStatus, BacktestRequest
+    Trade, BacktestResult, BacktestRequest,
+    TradeType, TradeStatus, PerformanceMetrics,
+    EquityPoint, DrawdownPoint
 )
+from analytics import PerformanceAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +39,6 @@ class Backtester:
             initial_capital: Starting capital for simulation
         """
         self.initial_capital = initial_capital
-        self.capital = initial_capital
         
     def run(
         self,
@@ -52,7 +53,7 @@ class Backtester:
             request: Backtest parameters including strategy settings
             
         Returns:
-            BacktestResult with all metrics and trade list
+            BacktestResult with all metrics, equity curve, and trade list
         """
         if not data or len(data) < request.sma_slow + 10:
             logger.warning("Insufficient data for backtest")
@@ -60,8 +61,8 @@ class Backtester:
         
         # Convert to DataFrame
         df = pd.DataFrame(data)
-        df['time'] = pd.to_datetime(df['time'], unit='s')
-        df.set_index('time', inplace=True)
+        df['time_dt'] = pd.to_datetime(df['time'], unit='s')
+        df.set_index('time_dt', inplace=True)
         
         logger.info(f"Running backtest: {request.symbol} | {request.strategy} | {len(df)} candles")
         
@@ -72,10 +73,29 @@ class Backtester:
             logger.warning(f"Unknown strategy: {request.strategy}, using SMA crossover")
             trades = self._strategy_sma_crossover(df, request)
         
-        # Calculate metrics
-        result = self._calculate_metrics(trades, request)
+        # Convert Trade objects to dicts for analytics
+        trade_dicts = [
+            {
+                'entry_time': t.entry_time,
+                'exit_time': t.exit_time,
+                'entry_price': t.entry_price,
+                'exit_price': t.exit_price,
+                'pnl': t.pnl,
+                'pnl_percent': t.pnl_percent,
+                'type': t.type.value,
+                'status': t.status.value
+            }
+            for t in trades
+        ]
         
-        logger.info(f"Backtest complete: {result.total_trades} trades, {result.win_rate:.1f}% win rate")
+        # Calculate analytics
+        analyzer = PerformanceAnalyzer(initial_capital=request.initial_capital)
+        analytics = analyzer.calculate_all_metrics(trade_dicts, data)
+        
+        # Build result
+        result = self._build_result(request, trades, analytics)
+        
+        logger.info(f"Backtest complete: {result.metrics.total_trades} trades, {result.metrics.win_rate:.1f}% win rate")
         
         return result
     
@@ -155,84 +175,89 @@ class Backtester:
         
         return trades
     
-    def _calculate_metrics(
+    def _build_result(
         self,
+        request: BacktestRequest,
         trades: list[Trade],
-        request: BacktestRequest
+        analytics: dict
     ) -> BacktestResult:
         """
-        Calculate all backtest metrics from trade list.
+        Build the final BacktestResult with all data.
         """
-        if not trades:
-            return self._empty_result(request)
+        metrics_data = analytics['metrics']
         
-        # Convert trades to arrays for vectorized calculations
-        pnls = np.array([t.pnl for t in trades])
-        pnl_percents = np.array([t.pnl_percent for t in trades])
+        # Create PerformanceMetrics
+        metrics = PerformanceMetrics(
+            sharpe_ratio=metrics_data['sharpe_ratio'],
+            sortino_ratio=metrics_data['sortino_ratio'],
+            max_drawdown=metrics_data['max_drawdown'],
+            max_drawdown_pct=metrics_data['max_drawdown_pct'],
+            win_rate=metrics_data['win_rate'],
+            profit_factor=metrics_data['profit_factor'],
+            total_return=metrics_data['total_return'],
+            total_return_pct=metrics_data['total_return_pct'],
+            total_trades=metrics_data['total_trades'],
+            winning_trades=metrics_data['winning_trades'],
+            losing_trades=metrics_data['losing_trades'],
+            gross_profit=metrics_data['gross_profit'],
+            gross_loss=metrics_data['gross_loss'],
+            avg_win=metrics_data['avg_win'],
+            avg_loss=metrics_data['avg_loss'],
+            final_equity=metrics_data['final_equity']
+        )
         
-        # Basic counts
-        total_trades = len(trades)
-        winning_trades = sum(1 for t in trades if t.status == TradeStatus.WIN)
-        losing_trades = sum(1 for t in trades if t.status == TradeStatus.LOSS)
+        # Convert equity curve
+        equity_curve = [
+            EquityPoint(time=int(p['time']), equity=p['equity'])
+            for p in analytics['equity_curve']
+        ]
         
-        # Win rate
-        win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0
-        
-        # Profit calculations
-        gross_profit = float(np.sum(pnls[pnls > 0])) if np.any(pnls > 0) else 0.0
-        gross_loss = float(np.sum(pnls[pnls < 0])) if np.any(pnls < 0) else 0.0
-        net_profit = float(np.sum(pnls))
-        net_profit_percent = float(np.sum(pnl_percents))
-        
-        # Profit factor
-        profit_factor = abs(gross_profit / gross_loss) if gross_loss != 0 else float('inf')
-        if profit_factor == float('inf'):
-            profit_factor = gross_profit if gross_profit > 0 else 0.0
-        
-        # Maximum Drawdown calculation
-        cumulative = np.cumsum(pnls)
-        running_max = np.maximum.accumulate(cumulative)
-        drawdowns = cumulative - running_max
-        max_drawdown = float(np.min(drawdowns)) if len(drawdowns) > 0 else 0.0
-        
-        # Drawdown percentage (relative to initial capital)
-        max_drawdown_percent = (max_drawdown / request.initial_capital) * 100
+        # Convert drawdown series
+        drawdown_series = [
+            DrawdownPoint(time=int(p['time']), drawdown_pct=p['drawdown_pct'])
+            for p in analytics['drawdown_series']
+        ]
         
         return BacktestResult(
             symbol=request.symbol,
             timeframe=request.timeframe,
             strategy_name=request.strategy,
-            total_trades=total_trades,
-            winning_trades=winning_trades,
-            losing_trades=losing_trades,
-            win_rate=round(win_rate, 2),
-            net_profit=round(net_profit, 2),
-            net_profit_percent=round(net_profit_percent, 2),
-            gross_profit=round(gross_profit, 2),
-            gross_loss=round(gross_loss, 2),
-            max_drawdown=round(max_drawdown, 2),
-            max_drawdown_percent=round(max_drawdown_percent, 2),
-            profit_factor=round(profit_factor, 2),
+            initial_capital=request.initial_capital,
+            metrics=metrics,
+            equity_curve=equity_curve,
+            drawdown_series=drawdown_series,
             trades=trades
         )
     
     def _empty_result(self, request: BacktestRequest) -> BacktestResult:
         """Return empty result when no trades are generated."""
+        metrics = PerformanceMetrics(
+            sharpe_ratio=0.0,
+            sortino_ratio=0.0,
+            max_drawdown=0.0,
+            max_drawdown_pct=0.0,
+            win_rate=0.0,
+            profit_factor=0.0,
+            total_return=0.0,
+            total_return_pct=0.0,
+            total_trades=0,
+            winning_trades=0,
+            losing_trades=0,
+            gross_profit=0.0,
+            gross_loss=0.0,
+            avg_win=0.0,
+            avg_loss=0.0,
+            final_equity=request.initial_capital
+        )
+        
         return BacktestResult(
             symbol=request.symbol,
             timeframe=request.timeframe,
             strategy_name=request.strategy,
-            total_trades=0,
-            winning_trades=0,
-            losing_trades=0,
-            win_rate=0.0,
-            net_profit=0.0,
-            net_profit_percent=0.0,
-            gross_profit=0.0,
-            gross_loss=0.0,
-            max_drawdown=0.0,
-            max_drawdown_percent=0.0,
-            profit_factor=0.0,
+            initial_capital=request.initial_capital,
+            metrics=metrics,
+            equity_curve=[],
+            drawdown_series=[],
             trades=[]
         )
 
