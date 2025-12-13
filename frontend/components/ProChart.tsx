@@ -2,20 +2,20 @@
 /**
  * ProChart - Advanced Lightweight-Charts Wrapper
  * ================================================
- * SSR-safe line chart for equity curve with trade markers
+ * SSR-safe line chart for equity curve
  * Updated for lightweight-charts v5 API
  */
 import { useEffect, useRef, memo } from 'react';
-import { createChart, IChartApi, LineSeries, HistogramSeries } from 'lightweight-charts';
-import type { Candle, Trade } from '@/lib/types';
+import { createChart, IChartApi, LineSeries } from 'lightweight-charts';
+import type { Candle } from '@/lib/types';
 
 interface ProChartProps {
     candles: Candle[];
-    trades: Trade[];
+    trades?: unknown[];
     height?: number;
 }
 
-function ProChartComponent({ candles, trades, height = 500 }: ProChartProps) {
+function ProChartComponent({ candles, height = 500 }: ProChartProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
 
@@ -63,7 +63,7 @@ function ProChartComponent({ candles, trades, height = 500 }: ProChartProps) {
         const lineSeries = chart.addSeries(LineSeries, {
             color: '#8b5cf6',
             lineWidth: 2,
-            priceLineVisible: false,
+            priceLineVisible: true,
             lastValueVisible: true,
         });
 
@@ -74,41 +74,6 @@ function ProChartComponent({ candles, trades, height = 500 }: ProChartProps) {
         }));
 
         lineSeries.setData(lineData);
-
-        // Add area fill effect
-        const areaSeries = chart.addSeries(LineSeries, {
-            color: 'rgba(139, 92, 246, 0.1)',
-            lineWidth: 0,
-            priceLineVisible: false,
-            lastValueVisible: false,
-            crosshairMarkerVisible: false,
-        });
-
-        areaSeries.setData(lineData);
-
-        // Add trade markers on the line series
-        if (trades.length > 0) {
-            const markers = trades.flatMap(trade => [
-                // Entry marker
-                {
-                    time: trade.entry_time as number,
-                    position: 'belowBar' as const,
-                    color: '#10b981',
-                    shape: 'arrowUp' as const,
-                    text: 'BUY',
-                },
-                // Exit marker
-                {
-                    time: trade.exit_time as number,
-                    position: 'aboveBar' as const,
-                    color: trade.pnl >= 0 ? '#10b981' : '#ef4444',
-                    shape: 'arrowDown' as const,
-                    text: trade.pnl >= 0 ? 'WIN' : 'LOSS',
-                },
-            ]);
-
-            lineSeries.setMarkers(markers);
-        }
 
         // Fit content
         chart.timeScale().fitContent();
@@ -126,7 +91,7 @@ function ProChartComponent({ candles, trades, height = 500 }: ProChartProps) {
             resizeObserver.disconnect();
             chart.remove();
         };
-    }, [candles, trades, height]);
+    }, [candles, height]);
 
     return (
         <div
