@@ -165,6 +165,16 @@ class BacktestRequest(BaseModel):
         description="User drawings on chart (markers, trendlines, etc.)"
     )
     
+    # Date Range Selection
+    start_date: Optional[int] = Field(
+        default=None,
+        description="Start date as Unix timestamp (seconds)"
+    )
+    end_date: Optional[int] = Field(
+        default=None,
+        description="End date as Unix timestamp (seconds)"
+    )
+    
     class Config:
         json_schema_extra = {
             "example": {

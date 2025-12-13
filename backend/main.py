@@ -237,11 +237,13 @@ async def run_backtest(request: BacktestRequest):
     logger.info(f"🧪 Backtest request: {symbol} | {request.timeframe} | {request.strategy}")
     
     try:
-        # Step 1: Fetch REAL market data
+        # Step 1: Fetch REAL market data (with optional date range)
         data = await data_service.fetch_ohlcv(
             symbol=symbol,
             timeframe=request.timeframe,
-            limit=request.limit
+            limit=request.limit,
+            start_date=request.start_date,
+            end_date=request.end_date
         )
         
         if not data:
@@ -260,7 +262,9 @@ async def run_backtest(request: BacktestRequest):
             initial_capital=request.initial_capital,
             strategy=request.strategy,
             sma_fast=request.sma_fast,
-            sma_slow=request.sma_slow
+            sma_slow=request.sma_slow,
+            start_date=request.start_date,
+            end_date=request.end_date
         )
         
         # Step 3: Run backtest engine

@@ -61,7 +61,9 @@ class DataService:
         symbol: str,
         timeframe: str = "1h",
         limit: int = 100,
-        since: Optional[int] = None
+        since: Optional[int] = None,
+        start_date: Optional[int] = None,
+        end_date: Optional[int] = None
     ) -> list[dict]:
         """
         Fetch REAL OHLCV (candlestick) data from Binance.
@@ -70,27 +72,34 @@ class DataService:
             symbol: Trading pair (e.g., "BTC/USDT", "ETH/USDT")
             timeframe: Candle timeframe ("1m", "5m", "15m", "1h", "4h", "1d")
             limit: Number of candles to fetch (max 1000)
-            since: Start timestamp in milliseconds (optional)
+            since: Start timestamp in milliseconds (optional, legacy)
+            start_date: Start timestamp in SECONDS (optional, new)
+            end_date: End timestamp in SECONDS (optional, filters results)
             
         Returns:
             List of OHLCV candles formatted for lightweight-charts:
             [{ time: int (unix seconds), open, high, low, close, volume }]
             
-        Raises:
-            ccxt.NetworkError: If Binance API is unreachable
-            ccxt.RateLimitExceeded: If rate limit is hit
-            ccxt.ExchangeError: For other exchange-related errors
+        Note:
+            V0.2 MVP: Limited to 1000 candles per request.
+            Pagination for larger ranges planned for V1.0.
         """
         if not self._initialized:
             await self.initialize()
             
         try:
+            # Determine start timestamp for CCXT (in milliseconds)
+            since_ms = since
+            if start_date is not None:
+                since_ms = start_date * 1000  # seconds → milliseconds
+                logger.info(f"Using start_date: {start_date} (Unix seconds)")
+            
             logger.info(f"Fetching OHLCV: {symbol} | {timeframe} | limit={limit}")
             
             ohlcv = await self.exchange.fetch_ohlcv(
                 symbol=symbol,
                 timeframe=timeframe,
-                since=since,
+                since=since_ms,
                 limit=limit
             )
             
@@ -107,6 +116,14 @@ class DataService:
                 }
                 for candle in ohlcv
             ]
+            
+            # Apply end_date filter if provided
+            if end_date is not None:
+                original_count = len(result)
+                result = [c for c in result if c["time"] <= end_date]
+                filtered_count = original_count - len(result)
+                if filtered_count > 0:
+                    logger.info(f"Filtered {filtered_count} candles after end_date: {end_date}")
             
             logger.info(f"Fetched {len(result)} candles for {symbol}")
             return result

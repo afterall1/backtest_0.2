@@ -100,6 +100,9 @@ export interface BacktestRequest {
     constraints?: string;       // Backtest Kısıtlamaları (HIGHEST PRIORITY)
     // Chart Drawing Data
     drawing_data?: DrawingPoint[];
+    // Date Range Selection
+    start_date?: number;        // Unix timestamp (seconds)
+    end_date?: number;          // Unix timestamp (seconds)
 }
 
 // API Response types

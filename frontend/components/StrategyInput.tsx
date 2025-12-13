@@ -196,6 +196,36 @@ export default function StrategyInput() {
                             />
                         </div>
                     </div>
+
+                    {/* Date Range Selection */}
+                    <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-700/30">
+                        <div>
+                            <label className="flex items-center gap-1 text-xs font-medium text-gray-400 mb-1">
+                                📅 Start Date
+                            </label>
+                            <input
+                                type="date"
+                                onChange={(e) => {
+                                    const timestamp = e.target.value ? Math.floor(new Date(e.target.value).getTime() / 1000) : undefined;
+                                    setStrategyParams({ start_date: timestamp });
+                                }}
+                                className="w-full px-3 py-2 text-sm bg-gray-900/80 border border-gray-600/50 rounded-lg text-white focus:border-violet-500 transition-all"
+                            />
+                        </div>
+                        <div>
+                            <label className="flex items-center gap-1 text-xs font-medium text-gray-400 mb-1">
+                                📅 End Date
+                            </label>
+                            <input
+                                type="date"
+                                onChange={(e) => {
+                                    const timestamp = e.target.value ? Math.floor(new Date(e.target.value).getTime() / 1000) : undefined;
+                                    setStrategyParams({ end_date: timestamp });
+                                }}
+                                className="w-full px-3 py-2 text-sm bg-gray-900/80 border border-gray-600/50 rounded-lg text-white focus:border-violet-500 transition-all"
+                            />
+                        </div>
+                    </div>
                 </div>
 
                 {/* Tab Navigation */}
@@ -206,8 +236,8 @@ export default function StrategyInput() {
                             type="button"
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex-1 px-4 py-3 flex items-center justify-center gap-2 text-sm font-medium transition-all ${activeTab === tab.id
-                                    ? 'text-white bg-gray-800/50 border-b-2 border-violet-500'
-                                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
+                                ? 'text-white bg-gray-800/50 border-b-2 border-violet-500'
+                                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
                                 }`}
                         >
                             <tab.icon className={`w-4 h-4 ${tab.id === 'constraints' ? 'text-yellow-400' : ''
@@ -241,8 +271,8 @@ export default function StrategyInput() {
                                             {tab.id === 'constraints' && '⚠️ Bu alandaki kurallar AI tarafından DEĞİŞTİRİLEMEZ'}
                                         </span>
                                         <span className={`text-[10px] px-2 py-0.5 rounded ${tab.priority === 'HIGHEST'
-                                                ? 'bg-yellow-500/20 text-yellow-400'
-                                                : 'bg-gray-700/50 text-gray-400'
+                                            ? 'bg-yellow-500/20 text-yellow-400'
+                                            : 'bg-gray-700/50 text-gray-400'
                                             }`}>
                                             {tab.priority}
                                         </span>
@@ -255,8 +285,8 @@ export default function StrategyInput() {
                                         placeholder={tab.placeholder}
                                         rows={8}
                                         className={`w-full px-4 py-3 bg-gray-900/60 border rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 transition-all resize-none ${tab.id === 'constraints'
-                                                ? 'border-yellow-500/30 focus:border-yellow-500 focus:ring-yellow-500/20'
-                                                : 'border-gray-600/50 focus:border-violet-500 focus:ring-violet-500/20'
+                                            ? 'border-yellow-500/30 focus:border-yellow-500 focus:ring-yellow-500/20'
+                                            : 'border-gray-600/50 focus:border-violet-500 focus:ring-violet-500/20'
                                             }`}
                                     />
                                 </motion.div>
