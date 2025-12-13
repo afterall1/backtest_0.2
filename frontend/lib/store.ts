@@ -45,6 +45,10 @@ const defaultParams: BacktestRequest = {
     strategy: 'sma_crossover',
     sma_fast: 10,
     sma_slow: 30,
+    // 3-Prompt Structure
+    general_info: '',
+    execution_details: '',
+    constraints: '',
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -90,14 +94,18 @@ export const useAppStore = create<AppState>((set, get) => ({
             analysisLogs: []
         });
 
-        // Simulate analysis logs
+        // Chaos AI Analysis logs
         const logs = [
+            '🧠 Chaos AI Engine Starting...',
+            '📝 Parsing generalInfo prompt...',
+            '📝 Parsing executionDetails prompt...',
+            '⚠️ Parsing constraints (HIGHEST PRIORITY)...',
             '🔗 Connecting to Binance...',
             `📊 Fetching ${strategyParams.limit} candles for ${strategyParams.symbol}...`,
-            '✅ Data received successfully',
-            `📈 Running ${strategyParams.strategy} strategy...`,
-            `⚡ SMA Fast: ${strategyParams.sma_fast} | SMA Slow: ${strategyParams.sma_slow}`,
-            '🔄 Detecting crossover signals...',
+            '✅ Market data received',
+            '🔬 Synthesizing StrategyLogic...',
+            `⚡ Fallback SMA: Fast=${strategyParams.sma_fast} | Slow=${strategyParams.sma_slow}`,
+            '🔄 Detecting trade signals...',
             '💰 Calculating trade PnL...',
             '📉 Computing drawdown series...',
             '🎯 Calculating Sharpe Ratio...',

@@ -77,7 +77,7 @@ export interface BacktestResult {
     trades: Trade[];
 }
 
-// Backtest Request
+// Backtest Request with 3-Prompt Structure
 export interface BacktestRequest {
     symbol: string;
     timeframe: string;
@@ -86,6 +86,10 @@ export interface BacktestRequest {
     strategy: string;
     sma_fast: number;
     sma_slow: number;
+    // 3-Prompt Chaos AI Input Structure
+    general_info?: string;      // Genel Strateji Bilgileri
+    execution_details?: string; // Strateji İşlem Detayları
+    constraints?: string;       // Backtest Kısıtlamaları (HIGHEST PRIORITY)
 }
 
 // API Response types
