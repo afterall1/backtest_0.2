@@ -2,10 +2,11 @@
 /**
  * ProChart - Advanced Lightweight-Charts Wrapper
  * ================================================
- * SSR-safe candlestick chart with trade markers
+ * SSR-safe line chart for equity curve with trade markers
+ * Updated for lightweight-charts v5 API
  */
 import { useEffect, useRef, memo } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, HistogramData } from 'lightweight-charts';
+import { createChart, IChartApi, LineSeries, HistogramSeries } from 'lightweight-charts';
 import type { Candle, Trade } from '@/lib/types';
 
 interface ProChartProps {
@@ -17,8 +18,6 @@ interface ProChartProps {
 function ProChartComponent({ candles, trades, height = 500 }: ProChartProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
-    const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-    const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
 
     useEffect(() => {
         if (!containerRef.current || candles.length === 0) return;
@@ -60,57 +59,34 @@ function ProChartComponent({ candles, trades, height = 500 }: ProChartProps) {
 
         chartRef.current = chart;
 
-        // Add candlestick series
-        const candleSeries = chart.addCandlestickSeries({
-            upColor: '#10b981',
-            downColor: '#ef4444',
-            borderUpColor: '#10b981',
-            borderDownColor: '#ef4444',
-            wickUpColor: '#10b981',
-            wickDownColor: '#ef4444',
+        // Add line series for equity curve (v5 API)
+        const lineSeries = chart.addSeries(LineSeries, {
+            color: '#8b5cf6',
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
         });
 
-        candleSeriesRef.current = candleSeries;
-
-        // Add volume series
-        const volumeSeries = chart.addHistogramSeries({
-            color: 'rgba(139, 92, 246, 0.3)',
-            priceFormat: {
-                type: 'volume',
-            },
-            priceScaleId: '',
-        });
-
-        volumeSeries.priceScale().applyOptions({
-            scaleMargins: {
-                top: 0.8,
-                bottom: 0,
-            },
-        });
-
-        volumeSeriesRef.current = volumeSeries;
-
-        // Set candle data
-        const candleData: CandlestickData[] = candles.map(c => ({
+        // Set equity data
+        const lineData = candles.map(c => ({
             time: c.time as number,
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close,
+            value: c.close,
         }));
 
-        candleSeries.setData(candleData);
+        lineSeries.setData(lineData);
 
-        // Set volume data
-        const volumeData: HistogramData[] = candles.map(c => ({
-            time: c.time as number,
-            value: c.volume,
-            color: c.close >= c.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)',
-        }));
+        // Add area fill effect
+        const areaSeries = chart.addSeries(LineSeries, {
+            color: 'rgba(139, 92, 246, 0.1)',
+            lineWidth: 0,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+        });
 
-        volumeSeries.setData(volumeData);
+        areaSeries.setData(lineData);
 
-        // Add trade markers
+        // Add trade markers on the line series
         if (trades.length > 0) {
             const markers = trades.flatMap(trade => [
                 // Entry marker
@@ -119,7 +95,7 @@ function ProChartComponent({ candles, trades, height = 500 }: ProChartProps) {
                     position: 'belowBar' as const,
                     color: '#10b981',
                     shape: 'arrowUp' as const,
-                    text: `BUY ${trade.entry_price.toFixed(2)}`,
+                    text: 'BUY',
                 },
                 // Exit marker
                 {
@@ -127,11 +103,11 @@ function ProChartComponent({ candles, trades, height = 500 }: ProChartProps) {
                     position: 'aboveBar' as const,
                     color: trade.pnl >= 0 ? '#10b981' : '#ef4444',
                     shape: 'arrowDown' as const,
-                    text: `SELL ${trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)}`,
+                    text: trade.pnl >= 0 ? 'WIN' : 'LOSS',
                 },
             ]);
 
-            candleSeries.setMarkers(markers);
+            lineSeries.setMarkers(markers);
         }
 
         // Fit content
