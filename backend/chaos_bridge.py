@@ -16,6 +16,45 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 
+class ChaosSynthesizer:
+    """
+    Chaos AI Strategy Synthesizer.
+    
+    Transforms 3-prompt input + drawing data into executable StrategyLogic.
+    Ready for future LLM API integration.
+    """
+    
+    def __init__(self):
+        self.logger = logging.getLogger(f"{__name__}.ChaosSynthesizer")
+    
+    def synthesize(self, request) -> 'StrategyLogic':
+        """
+        Synthesize strategy from BacktestRequest.
+        
+        Args:
+            request: BacktestRequest with 3-prompt fields and drawing_data
+            
+        Returns:
+            StrategyLogic ready for execution
+        """
+        drawing_count = len(request.drawing_data) if request.drawing_data else 0
+        
+        self.logger.info(
+            f"🧠 Synthesizing Strategy from:\n"
+            f"   - 3 text inputs\n"
+            f"   - {drawing_count} drawings"
+        )
+        
+        return synthesize_strategy(
+            general_info=request.general_info or "",
+            execution_details=request.execution_details or "",
+            constraints=request.constraints or "",
+            chart_data=request.drawing_data,
+            sma_fast=request.sma_fast,
+            sma_slow=request.sma_slow
+        )
+
+
 class IndicatorConfig(BaseModel):
     """Configuration for a technical indicator."""
     name: str = Field(..., description="Indicator name (e.g., SMA, RSI, MACD)")

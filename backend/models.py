@@ -159,6 +159,12 @@ class BacktestRequest(BaseModel):
         description="Backtest Kısıtlamaları (HIGHEST PRIORITY - Cannot be overridden)"
     )
     
+    # Chart Drawing Data
+    drawing_data: Optional[list[dict]] = Field(
+        default=None,
+        description="User drawings on chart (markers, trendlines, etc.)"
+    )
+    
     class Config:
         json_schema_extra = {
             "example": {

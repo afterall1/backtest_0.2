@@ -4,7 +4,7 @@
  * Manages app state: step flow, strategy params, results
  */
 import { create } from 'zustand';
-import type { BacktestRequest, BacktestResult, AppStep } from './types';
+import type { BacktestRequest, BacktestResult, AppStep, DrawingPoint } from './types';
 
 const API_BASE = 'http://localhost:8000';
 
@@ -31,6 +31,8 @@ interface AppState {
     // Actions
     setStep: (step: AppStep) => void;
     setStrategyParams: (params: Partial<BacktestRequest>) => void;
+    addDrawing: (point: DrawingPoint) => void;
+    clearDrawings: () => void;
     fetchSymbols: () => Promise<void>;
     runBacktest: () => Promise<void>;
     addLog: (log: string) => void;
@@ -49,6 +51,8 @@ const defaultParams: BacktestRequest = {
     general_info: '',
     execution_details: '',
     constraints: '',
+    // Drawing Data
+    drawing_data: [],
 };
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -67,6 +71,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Update strategy parameters
     setStrategyParams: (params) => set((state) => ({
         strategyParams: { ...state.strategyParams, ...params }
+    })),
+
+    // Add drawing point to chart
+    addDrawing: (point) => set((state) => ({
+        strategyParams: {
+            ...state.strategyParams,
+            drawing_data: [...(state.strategyParams.drawing_data || []), point]
+        }
+    })),
+
+    // Clear all drawings
+    clearDrawings: () => set((state) => ({
+        strategyParams: {
+            ...state.strategyParams,
+            drawing_data: []
+        }
     })),
 
     // Fetch available symbols from API

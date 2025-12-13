@@ -11,6 +11,14 @@ export type TradeStatus = 'win' | 'loss' | 'breakeven';
 // App States
 export type AppStep = 'input' | 'analyzing' | 'results';
 
+// Chart Drawing Point
+export interface DrawingPoint {
+    time: number;      // Unix timestamp
+    price: number;     // Price level
+    type: 'marker' | 'trendline_start' | 'trendline_end' | 'support' | 'resistance';
+    label?: string;
+}
+
 // OHLCV Candle
 export interface Candle {
     time: number;
@@ -90,6 +98,8 @@ export interface BacktestRequest {
     general_info?: string;      // Genel Strateji Bilgileri
     execution_details?: string; // Strateji İşlem Detayları
     constraints?: string;       // Backtest Kısıtlamaları (HIGHEST PRIORITY)
+    // Chart Drawing Data
+    drawing_data?: DrawingPoint[];
 }
 
 // API Response types
