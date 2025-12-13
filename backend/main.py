@@ -266,7 +266,7 @@ async def run_backtest(request: BacktestRequest):
         # Step 3: Run backtest engine
         result = backtester.run(data=data, request=request_copy)
         
-        logger.info(f"✅ Backtest complete: {result.total_trades} trades")
+        logger.info(f"✅ Backtest complete: {result.metrics.total_trades} trades")
         
         return result
         

@@ -153,40 +153,50 @@ export default function DashboardPage() {
                 transition={{ delay: 0.1 }}
                 className="rounded-2xl bg-gray-900/50 border border-gray-700/50 p-4 backdrop-blur-sm"
               >
-                <ProChart
-                  candles={backtestResult.equity_curve.map((p, i) => ({
-                    time: p.time,
-                    open: i > 0 ? backtestResult.equity_curve[i - 1].equity : p.equity,
-                    high: p.equity,
-                    low: i > 0 ? Math.min(backtestResult.equity_curve[i - 1].equity, p.equity) : p.equity,
-                    close: p.equity,
-                    volume: 0,
-                  }))}
-                  trades={backtestResult.trades}
-                  height={400}
-                />
+                {backtestResult.equity_curve && backtestResult.equity_curve.length > 0 ? (
+                  <ProChart
+                    candles={backtestResult.equity_curve.map((p, i) => ({
+                      time: p.time,
+                      open: i > 0 ? backtestResult.equity_curve[i - 1].equity : p.equity,
+                      high: Math.max(p.equity, i > 0 ? backtestResult.equity_curve[i - 1].equity : p.equity),
+                      low: Math.min(p.equity, i > 0 ? backtestResult.equity_curve[i - 1].equity : p.equity),
+                      close: p.equity,
+                      volume: 0,
+                    }))}
+                    trades={backtestResult.trades || []}
+                    height={400}
+                  />
+                ) : (
+                  <div className="w-full h-[400px] flex items-center justify-center text-gray-500">
+                    No equity curve data available
+                  </div>
+                )}
               </motion.div>
 
               {/* Metrics Grid */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <MetricsGrid
-                  metrics={backtestResult.metrics}
-                  initialCapital={backtestResult.initial_capital}
-                />
-              </motion.div>
+              {backtestResult.metrics && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <MetricsGrid
+                    metrics={backtestResult.metrics}
+                    initialCapital={backtestResult.initial_capital || 10000}
+                  />
+                </motion.div>
+              )}
 
               {/* Trade List */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <TradeList trades={backtestResult.trades} />
-              </motion.div>
+              {backtestResult.trades && backtestResult.trades.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <TradeList trades={backtestResult.trades} />
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
