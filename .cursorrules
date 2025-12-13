@@ -44,8 +44,9 @@ protected_directories:
     access: "read-only"
     override: "Sudo Override required"
   - path: "prompts/"
-    access: "read-only"
-    override: "Sudo Override required"
+    access: "READ-ONLY (ABSOLUTE)"
+    override: "NO OVERRIDE - User-only files"
+    rule: "Files in prompts/ are READ-ONLY. Do NOT generate code to overwrite them."
 
 # ============================================================
 # ✅ REQUIRED PATTERNS

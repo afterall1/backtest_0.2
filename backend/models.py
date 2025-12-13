@@ -129,16 +129,35 @@ class BacktestResult(BaseModel):
 class BacktestRequest(BaseModel):
     """
     Request model for backtest endpoint.
+    
+    Includes 3-Prompt Structure for Chaos AI:
+    - generalInfo: Strategy overview
+    - executionDetails: Entry/Exit logic
+    - constraints: User constraints (HIGHEST PRIORITY)
     """
     symbol: str = Field(..., description="Trading pair (e.g., BTC/USDT)")
     timeframe: str = Field(default="1h", description="Candle timeframe")
     limit: int = Field(default=500, ge=50, le=1000, description="Number of candles")
     initial_capital: float = Field(default=10000.0, ge=100, description="Starting capital")
     
-    # Strategy Parameters
+    # Strategy Parameters (fallback)
     strategy: str = Field(default="sma_crossover", description="Strategy name")
     sma_fast: int = Field(default=10, ge=2, le=50, description="Fast SMA period")
     sma_slow: int = Field(default=30, ge=10, le=200, description="Slow SMA period")
+    
+    # 3-Prompt Chaos AI Input Structure
+    general_info: Optional[str] = Field(
+        default=None, 
+        description="Genel Strateji Bilgileri"
+    )
+    execution_details: Optional[str] = Field(
+        default=None, 
+        description="Strateji İşlem Detayları (Entry, Exit, SL, R:R)"
+    )
+    constraints: Optional[str] = Field(
+        default=None, 
+        description="Backtest Kısıtlamaları (HIGHEST PRIORITY - Cannot be overridden)"
+    )
     
     class Config:
         json_schema_extra = {
@@ -149,6 +168,10 @@ class BacktestRequest(BaseModel):
                 "initial_capital": 10000,
                 "strategy": "sma_crossover",
                 "sma_fast": 10,
-                "sma_slow": 30
+                "sma_slow": 30,
+                "general_info": "Trend following strategy using SMA crossover",
+                "execution_details": "Entry when fast SMA crosses above slow. Exit on opposite.",
+                "constraints": "Stop Loss must be exactly 2%"
             }
         }
+
