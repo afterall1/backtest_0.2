@@ -13,6 +13,8 @@ import ccxt.async_support as ccxt
 import logging
 
 from data_service import DataService
+from models import BacktestRequest, BacktestResult
+from engine import Backtester
 
 # Configure logging
 logging.basicConfig(
@@ -21,8 +23,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize data service (singleton)
+# Initialize services (singletons)
 data_service = DataService()
+backtester = Backtester()
 
 
 @asynccontextmanager
@@ -61,12 +64,17 @@ app.add_middleware(
 )
 
 
+# ============================================================
+# HEALTH ENDPOINTS
+# ============================================================
+
 @app.get("/")
 async def root():
     """Health check endpoint."""
     return {
         "status": "online",
         "engine": "Trader Backtest v0.2",
+        "phase": "Phase 2 - Core Engine Active",
         "data_source": "binance",
         "mock_data": False
     }
@@ -79,9 +87,14 @@ async def health_check():
         "status": "healthy",
         "data_source": "binance",
         "mock_data": False,
-        "async_mode": True
+        "async_mode": True,
+        "engine_ready": True
     }
 
+
+# ============================================================
+# DATA ENDPOINTS
+# ============================================================
 
 @app.get("/api/symbols")
 async def get_symbols():
@@ -197,6 +210,83 @@ async def get_ticker(symbol: str):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid symbol: {symbol}"
+        )
+
+
+# ============================================================
+# BACKTEST ENDPOINT
+# ============================================================
+
+@app.post("/api/backtest", response_model=BacktestResult)
+async def run_backtest(request: BacktestRequest):
+    """
+    Execute a backtest simulation on real market data.
+    
+    This endpoint:
+    1. Fetches REAL historical data from Binance
+    2. Runs the specified strategy through the backtest engine
+    3. Returns comprehensive performance metrics
+    
+    NO MOCK DATA - All calculations use real market data.
+    """
+    # Normalize symbol
+    symbol = request.symbol
+    if "/" not in symbol:
+        symbol = f"{symbol[:-4]}/{symbol[-4:]}" if symbol.endswith("USDT") else symbol
+    
+    logger.info(f"🧪 Backtest request: {symbol} | {request.timeframe} | {request.strategy}")
+    
+    try:
+        # Step 1: Fetch REAL market data
+        data = await data_service.fetch_ohlcv(
+            symbol=symbol,
+            timeframe=request.timeframe,
+            limit=request.limit
+        )
+        
+        if not data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No data available for {symbol}"
+            )
+        
+        logger.info(f"📊 Fetched {len(data)} candles for backtest")
+        
+        # Step 2: Update request with normalized symbol
+        request_copy = BacktestRequest(
+            symbol=symbol,
+            timeframe=request.timeframe,
+            limit=request.limit,
+            initial_capital=request.initial_capital,
+            strategy=request.strategy,
+            sma_fast=request.sma_fast,
+            sma_slow=request.sma_slow
+        )
+        
+        # Step 3: Run backtest engine
+        result = backtester.run(data=data, request=request_copy)
+        
+        logger.info(f"✅ Backtest complete: {result.total_trades} trades")
+        
+        return result
+        
+    except ccxt.NetworkError as e:
+        logger.error(f"Network error during backtest: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to fetch market data. Please try again."
+        )
+    except ccxt.ExchangeError as e:
+        logger.error(f"Exchange error during backtest: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid symbol or request: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Backtest engine error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Backtest engine error: {str(e)}"
         )
 
 
