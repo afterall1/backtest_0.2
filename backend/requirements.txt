@@ -10,6 +10,7 @@ uvicorn[standard]>=0.24.0
 ccxt>=4.1.0
 pandas>=2.1.0
 numpy>=1.26.0
+pandas-ta>=0.3.14b  # Technical indicators library
 
 # Async Support
 aiohttp>=3.9.0

@@ -257,14 +257,37 @@ def synthesize_strategy(
     # Step 1: Parse constraints FIRST (highest priority)
     parsed_constraints = parse_constraints(constraints)
     
-    # Step 2: Initialize with defaults
+    # Step 2: Initialize with RICH indicators for Universal Logic Executor
     strategy = StrategyLogic(
         strategy_name="Chaos AI Strategy",
-        confidence_score=0.7,
+        confidence_score=0.85,
         sma_fast=sma_fast,
         sma_slow=sma_slow,
-        use_sma_fallback=True,
-        constraints=parsed_constraints
+        use_sma_fallback=False,  # Use dynamic execution
+        constraints=parsed_constraints,
+        # Pre-populate with RSI and EMA for testing dynamic engine
+        indicators=[
+            IndicatorConfig(name="RSI", period=14, params={"overbought": 70, "oversold": 30}),
+            IndicatorConfig(name="EMA", period=21, params={}),
+            IndicatorConfig(name="SMA", period=sma_fast, params={}),
+            IndicatorConfig(name="SMA", period=sma_slow, params={}),
+        ],
+        entry_rules=[
+            EntryRule(
+                condition="RSI below 30 (oversold) with price above EMA",
+                indicator="RSI_EMA_Combo",
+                threshold=30.0,
+                direction="long"
+            )
+        ],
+        exit_rules=[
+            ExitRule(
+                condition="RSI above 70 (overbought) or Stop Loss hit",
+                take_profit_pct=5.0,
+                stop_loss_pct=2.0,
+                trailing_stop=False
+            )
+        ]
     )
     
     # Step 3: Parse execution details for indicators

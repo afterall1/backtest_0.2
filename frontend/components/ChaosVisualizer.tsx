@@ -1,127 +1,218 @@
 'use client';
 /**
- * ChaosVisualizer - AI Thinking State Animation
- * ===============================================
- * Premium loading state with terminal-style logs
+ * ChaosVisualizer - Cinematic AI Processing View
+ * ================================================
+ * Matrix/Terminal aesthetic with staggered animations
+ * Simulates watching a supercomputer think
  */
-import { motion } from 'framer-motion';
+import { useEffect, useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/lib/store';
-import { Terminal, Cpu, Zap, Activity } from 'lucide-react';
+
+// System logs that simulate AI processing
+const SYSTEM_LOGS = [
+    { text: '🔌 Initializing Chaos AI Engine v0.2...', delay: 0 },
+    { text: '🔗 Establishing Binance WebSocket connection...', delay: 200 },
+    { text: '✓ Real-time liquidity feed connected', delay: 400 },
+    { text: '📊 Fetching historical OHLCV data...', delay: 600 },
+    { text: '✓ 500 candles loaded into memory buffer', delay: 900 },
+    { text: '🧠 Parsing 3-Prompt Input Structure...', delay: 1100 },
+    { text: '  → generalInfo: Strategy context loaded', delay: 1300 },
+    { text: '  → executionDetails: Entry/Exit rules parsed', delay: 1500 },
+    { text: '  → constraints: ⚠️ PRIORITY RULES LOCKED', delay: 1700 },
+    { text: '🔬 Activating Universal Logic Executor...', delay: 2000 },
+    { text: '📈 IndicatorFactory: Calculating RSI(14)...', delay: 2200 },
+    { text: '📈 IndicatorFactory: Calculating EMA(21)...', delay: 2400 },
+    { text: '📈 IndicatorFactory: Calculating SMA Crossover...', delay: 2600 },
+    { text: '🎯 SignalEvaluator: Detecting entry conditions...', delay: 2900 },
+    { text: '🔄 Pattern Detected: Bullish Divergence', delay: 3200 },
+    { text: '📉 Vectorized backtest running...', delay: 3400 },
+    { text: '💰 Computing trade PnL matrix...', delay: 3600 },
+    { text: '📊 Calculating Sharpe Ratio (annualized 365d)...', delay: 3800 },
+    { text: '📊 Calculating Sortino Ratio...', delay: 4000 },
+    { text: '📊 Computing Maximum Drawdown...', delay: 4200 },
+    { text: '✨ Generating performance analytics...', delay: 4400 },
+    { text: '🎉 Chaos AI Analysis Complete', delay: 4700 },
+];
 
 export default function ChaosVisualizer() {
-    const { analysisLogs, strategyParams } = useAppStore();
+    const { analysisLogs } = useAppStore();
+    const [displayLogs, setDisplayLogs] = useState<string[]>([]);
+    const [progress, setProgress] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    // Animate system logs
+    useEffect(() => {
+        const timers: NodeJS.Timeout[] = [];
+
+        SYSTEM_LOGS.forEach((log, index) => {
+            const timer = setTimeout(() => {
+                setDisplayLogs(prev => [...prev, log.text]);
+                setProgress((index + 1) / SYSTEM_LOGS.length * 100);
+
+                // Auto-scroll to bottom
+                if (containerRef.current) {
+                    containerRef.current.scrollTop = containerRef.current.scrollHeight;
+                }
+            }, log.delay);
+            timers.push(timer);
+        });
+
+        return () => timers.forEach(t => clearTimeout(t));
+    }, []);
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full max-w-3xl mx-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="w-full max-w-4xl mx-auto"
         >
             {/* Header */}
-            <div className="text-center mb-8">
-                <motion.div
-                    animate={{
-                        boxShadow: [
-                            '0 0 20px rgba(139, 92, 246, 0.3)',
-                            '0 0 40px rgba(139, 92, 246, 0.5)',
-                            '0 0 20px rgba(139, 92, 246, 0.3)',
-                        ]
-                    }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-violet-600 to-cyan-600 mb-6"
+            <div className="text-center mb-6">
+                <motion.h1
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400"
                 >
-                    <Cpu className="w-10 h-10 text-white" />
-                </motion.div>
-
-                <h2 className="text-3xl font-bold text-white mb-2">
-                    Analyzing Strategy
-                </h2>
-                <p className="text-gray-400">
-                    Processing {strategyParams.symbol} with {strategyParams.strategy}
-                </p>
+                    Chaos AI Processing
+                </motion.h1>
+                <p className="text-gray-500 text-sm mt-1">Universal Logic Executor Active</p>
             </div>
 
-            {/* Scanning Animation */}
-            <div className="relative mb-8">
-                <div className="h-2 rounded-full bg-gray-800 overflow-hidden">
-                    <motion.div
-                        animate={{ x: ['-100%', '100%'] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
-                        className="h-full w-1/3 bg-gradient-to-r from-transparent via-violet-500 to-transparent"
-                    />
-                </div>
-            </div>
-
-            {/* Terminal Card */}
+            {/* Main Terminal */}
             <motion.div
-                className="relative rounded-2xl bg-gray-900/90 border border-gray-700/50 overflow-hidden shadow-2xl"
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="relative rounded-2xl overflow-hidden bg-gray-950 border border-cyan-500/30 shadow-2xl shadow-cyan-500/10"
             >
                 {/* Terminal Header */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-gray-800/80 border-b border-gray-700/50">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                    <span className="ml-2 text-sm text-gray-400 font-mono flex items-center gap-2">
-                        <Terminal className="w-4 h-4" />
-                        chaos-engine v0.2
-                    </span>
+                <div className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-800">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
+                    <span className="text-xs text-gray-500 font-mono">chaos_ai_engine.exe</span>
+                    <div className="flex items-center gap-2">
+                        <PulseIndicator />
+                        <span className="text-xs text-cyan-400 font-mono">RUNNING</span>
+                    </div>
                 </div>
 
-                {/* Terminal Content */}
-                <div className="p-4 h-80 overflow-y-auto font-mono text-sm">
-                    {analysisLogs.map((log, idx) => (
-                        <motion.div
-                            key={idx}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.05 }}
-                            className="flex items-start gap-2 mb-2"
-                        >
-                            <span className="text-gray-500 select-none">[{String(idx).padStart(2, '0')}]</span>
-                            <span className={`
-                ${log.includes('✅') || log.includes('🎉') ? 'text-emerald-400' : ''}
-                ${log.includes('❌') ? 'text-red-400' : ''}
-                ${log.includes('📊') || log.includes('📈') || log.includes('📉') ? 'text-cyan-400' : ''}
-                ${log.includes('🔗') || log.includes('🔄') ? 'text-violet-400' : ''}
-                ${log.includes('💰') || log.includes('🎯') || log.includes('🎲') ? 'text-yellow-400' : ''}
-                ${log.includes('⚡') ? 'text-orange-400' : ''}
-                ${!log.match(/[✅❌📊📈📉🔗🔄💰🎯🎲⚡🎉]/) ? 'text-gray-300' : ''}
-              `}>
-                                {log}
-                            </span>
-                        </motion.div>
-                    ))}
-
-                    {/* Cursor blink */}
+                {/* Progress Bar */}
+                <div className="h-1 bg-gray-900 relative overflow-hidden">
                     <motion.div
-                        animate={{ opacity: [1, 0] }}
-                        transition={{ duration: 0.5, repeat: Infinity }}
-                        className="inline-block w-2 h-4 bg-violet-400 ml-1"
+                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-500 via-violet-500 to-fuchsia-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progress}%` }}
+                        transition={{ duration: 0.3 }}
                     />
+                    <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+                </div>
+
+                {/* Log Container */}
+                <div
+                    ref={containerRef}
+                    className="h-[400px] overflow-y-auto p-4 font-mono text-sm scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
+                >
+                    <AnimatePresence mode="popLayout">
+                        {displayLogs.map((log, index) => (
+                            <motion.div
+                                key={index}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.15 }}
+                                className={`py-0.5 ${log.includes('✓') ? 'text-green-400' :
+                                        log.includes('⚠️') ? 'text-yellow-400' :
+                                            log.includes('🎉') ? 'text-fuchsia-400' :
+                                                log.includes('Pattern Detected') ? 'text-cyan-400 font-bold' :
+                                                    log.startsWith('  →') ? 'text-gray-500 pl-4' :
+                                                        'text-gray-300'
+                                    }`}
+                            >
+                                <span className="text-gray-600 mr-2">[{String(index + 1).padStart(2, '0')}]</span>
+                                {log}
+                                {log.includes('🎉') && <CelebrationEffect />}
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+
+                    {/* Blinking Cursor */}
+                    {progress < 100 && (
+                        <motion.span
+                            className="inline-block w-2 h-4 bg-cyan-400 ml-1"
+                            animate={{ opacity: [1, 0, 1] }}
+                            transition={{ duration: 0.8, repeat: Infinity }}
+                        />
+                    )}
+                </div>
+
+                {/* Status Bar */}
+                <div className="px-4 py-2 bg-gray-900 border-t border-gray-800 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <span className="text-xs text-gray-500">
+                            CPU: <span className="text-cyan-400">87%</span>
+                        </span>
+                        <span className="text-xs text-gray-500">
+                            MEM: <span className="text-violet-400">2.4GB</span>
+                        </span>
+                        <span className="text-xs text-gray-500">
+                            GPU: <span className="text-fuchsia-400">CUDA Active</span>
+                        </span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                        Progress: <span className="text-white">{Math.round(progress)}%</span>
+                    </span>
                 </div>
             </motion.div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-4 mt-6">
-                {[
-                    { icon: Activity, label: 'Candles', value: strategyParams.limit, color: 'text-cyan-400' },
-                    { icon: Zap, label: 'Strategy', value: 'SMA', color: 'text-yellow-400' },
-                    { icon: Terminal, label: 'Status', value: 'Live', color: 'text-emerald-400' },
-                ].map((stat, idx) => (
-                    <motion.div
-                        key={stat.label}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 + idx * 0.1 }}
-                        className="p-4 rounded-xl bg-gray-800/50 border border-gray-700/50 text-center"
-                    >
-                        <stat.icon className={`w-5 h-5 mx-auto mb-2 ${stat.color}`} />
-                        <div className="text-xl font-bold text-white font-mono">{stat.value}</div>
-                        <div className="text-xs text-gray-500">{stat.label}</div>
-                    </motion.div>
-                ))}
-            </div>
+            {/* Neural Grid Background */}
+            <NeuralGrid />
         </motion.div>
+    );
+}
+
+// Pulsing indicator component
+function PulseIndicator() {
+    return (
+        <div className="relative">
+            <div className="w-2 h-2 rounded-full bg-cyan-400" />
+            <motion.div
+                className="absolute inset-0 w-2 h-2 rounded-full bg-cyan-400"
+                animate={{ scale: [1, 2], opacity: [0.8, 0] }}
+                transition={{ duration: 1, repeat: Infinity }}
+            />
+        </div>
+    );
+}
+
+// Celebration effect when complete
+function CelebrationEffect() {
+    return (
+        <motion.span
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: [0, 1, 0], scale: [0.5, 1.2, 1] }}
+            transition={{ duration: 0.5 }}
+            className="inline-block ml-2"
+        >
+            ✨
+        </motion.span>
+    );
+}
+
+// Neural network grid background
+function NeuralGrid() {
+    return (
+        <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+            <svg className="w-full h-full opacity-5">
+                <defs>
+                    <pattern id="neural-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <circle cx="20" cy="20" r="1" fill="currentColor" className="text-cyan-500" />
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#neural-grid)" />
+            </svg>
+        </div>
     );
 }
