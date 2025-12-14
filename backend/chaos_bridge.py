@@ -1,120 +1,54 @@
 """
-Chaos Bridge - AI Logic Synthesizer
-=====================================
+Chaos Bridge - AI Logic Synthesizer (Production-Grade Gemini Integration)
+==========================================================================
 This module bridges user strategy inputs with the backtest engine.
-It parses the 3-prompt structure and synthesizes strategy logic.
+Uses Google Generative AI (Gemini) for intelligent strategy synthesis.
 
 ⚠️ CONSTRAINT PRIORITY RULE:
    User Constraints > AI Interpretation
    
 If user specifies a constraint, it MUST NOT be overridden.
 """
+import os
+import re
+import json
 import logging
+from pathlib import Path
 from typing import Optional
+
+import google.generativeai as genai
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
+# ============================================================
+# 🔧 CONFIGURATION
+# ============================================================
 
-class ChaosSynthesizer:
-    """
-    Chaos AI Strategy Synthesizer.
-    
-    Transforms 3-prompt input + drawing data into executable StrategyLogic.
-    Ready for future LLM API integration.
-    """
-    
-    def __init__(self):
-        self.logger = logging.getLogger(f"{__name__}.ChaosSynthesizer")
-    
-    def synthesize(self, request) -> 'StrategyLogic':
-        """
-        Synthesize strategy from BacktestRequest.
-        
-        Implements CONSTRAINT PRIORITY RULE:
-        User Constraints > Chart Signal > AI Interpretation
-        
-        Args:
-            request: BacktestRequest with 3-prompt fields and drawing_data
-            
-        Returns:
-            StrategyLogic ready for execution
-        """
-        drawing_count = len(request.drawing_data) if request.drawing_data else 0
-        
-        self.logger.info(
-            f"🧠 Synthesizing Strategy from:\n"
-            f"   - 3 text inputs\n"
-            f"   - {drawing_count} drawings"
-        )
-        
-        # Conflict Resolution Simulation
-        # Prepare for real LLM integration
-        detected_conflicts = self._detect_conflicts(
-            general_info=request.general_info or "",
-            execution_details=request.execution_details or "",
-            constraints=request.constraints or "",
-            drawings=request.drawing_data
-        )
-        
-        for conflict in detected_conflicts:
-            self.logger.warning(f"⚠️ {conflict}")
-        
-        return synthesize_strategy(
-            general_info=request.general_info or "",
-            execution_details=request.execution_details or "",
-            constraints=request.constraints or "",
-            chart_data=request.drawing_data,
-            sma_fast=request.sma_fast,
-            sma_slow=request.sma_slow
-        )
-    
-    def _detect_conflicts(
-        self,
-        general_info: str,
-        execution_details: str,
-        constraints: str,
-        drawings: list | None
-    ) -> list[str]:
-        """
-        Detect conflicts between inputs and apply CONSTRAINT PRIORITY.
-        
-        Priority Order:
-        1. constraints (HIGHEST - Cannot be overridden)
-        2. execution_details
-        3. chart drawings
-        4. general_info (LOWEST)
-        """
-        conflicts = []
-        
-        general_lower = general_info.lower()
-        constraints_lower = constraints.lower() if constraints else ""
-        
-        # Conflict Example: Trend Following vs Mean Reversion
-        if "trend" in general_lower and "mean reversion" in constraints_lower:
-            conflicts.append(
-                "Conflict Detected: Chart/General says 'Trend Following' but "
-                "Constraints say 'Mean Reversion'. "
-                "Applying CONSTRAINT PRIORITY. Ignoring Chart Signal."
-            )
-        
-        # Conflict: Drawing suggests BUY but constraints say SELL only
-        if drawings and len(drawings) > 0:
-            if "sell only" in constraints_lower or "short only" in constraints_lower:
-                conflicts.append(
-                    "Conflict Detected: User marked chart positions but "
-                    "Constraints restrict to SELL/SHORT only. "
-                    "Applying CONSTRAINT PRIORITY. Chart markers ignored for direction."
-                )
-        
-        # Log resolution
-        if conflicts:
-            self.logger.info(
-                f"🔄 Resolved {len(conflicts)} conflicts using CONSTRAINT PRIORITY"
-            )
-        
-        return conflicts
+# Configure Gemini API
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+    logger.info("✅ Gemini API configured successfully")
+else:
+    logger.warning("⚠️ GEMINI_API_KEY not found. AI features will use fallback mode.")
 
+# Model Configuration
+MODEL_NAME = "gemini-1.5-flash"
+GENERATION_CONFIG = {
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "top_k": 40,
+    "max_output_tokens": 2048,
+}
+
+# Path to system prompt
+CHAOS_PRIME_PATH = Path(__file__).parent.parent / "prompts" / "chaos_prime.md"
+
+
+# ============================================================
+# 📦 PYDANTIC MODELS
+# ============================================================
 
 class IndicatorConfig(BaseModel):
     """Configuration for a technical indicator."""
@@ -148,56 +82,330 @@ class Constraint(BaseModel):
 
 class StrategyLogic(BaseModel):
     """
-    Structured strategy logic synthesized from 3-prompt input.
-    
-    This is the bridge between natural language and executable logic.
+    Structured strategy logic synthesized from AI response.
     """
-    # Metadata
     strategy_name: str = Field(default="Chaos Strategy", description="Generated name")
     confidence_score: float = Field(default=0.0, ge=0.0, le=1.0, description="AI confidence")
+    logic_summary: str = Field(default="", description="AI analysis summary")
     
-    # Indicators
-    indicators: list[IndicatorConfig] = Field(
-        default_factory=list,
-        description="Technical indicators to calculate"
-    )
+    indicators: list[IndicatorConfig] = Field(default_factory=list)
+    entry_rules: list[EntryRule] = Field(default_factory=list)
+    exit_rules: list[ExitRule] = Field(default_factory=list)
+    constraints: list[Constraint] = Field(default_factory=list)
     
-    # Rules
-    entry_rules: list[EntryRule] = Field(
-        default_factory=list,
-        description="Entry conditions"
-    )
-    exit_rules: list[ExitRule] = Field(
-        default_factory=list,
-        description="Exit conditions"
-    )
+    risk_per_trade_pct: float = Field(default=1.0)
+    max_positions: int = Field(default=1)
     
-    # Constraints (HIGHEST PRIORITY)
-    constraints: list[Constraint] = Field(
-        default_factory=list,
-        description="User constraints - CANNOT be overridden"
-    )
-    
-    # Risk Management
-    risk_per_trade_pct: float = Field(default=1.0, description="Risk per trade %")
-    max_positions: int = Field(default=1, description="Maximum concurrent positions")
-    
-    # Fallback to SMA Crossover
-    use_sma_fallback: bool = Field(default=True, description="Use SMA if parsing fails")
-    sma_fast: int = Field(default=10, description="Fast SMA period")
-    sma_slow: int = Field(default=30, description="Slow SMA period")
+    use_sma_fallback: bool = Field(default=True)
+    sma_fast: int = Field(default=10)
+    sma_slow: int = Field(default=30)
 
+
+# ============================================================
+# 🧠 CHAOS SYNTHESIZER (GEMINI INTEGRATION)
+# ============================================================
+
+class ChaosSynthesizer:
+    """
+    Chaos AI Strategy Synthesizer with Gemini Integration.
+    
+    Transforms 3-prompt input + chart data into executable StrategyLogic.
+    """
+    
+    def __init__(self):
+        self.logger = logging.getLogger(f"{__name__}.ChaosSynthesizer")
+        self._system_prompt: Optional[str] = None
+        self._model = None
+        
+        # Initialize model if API key exists
+        if GEMINI_API_KEY:
+            try:
+                self._model = genai.GenerativeModel(
+                    model_name=MODEL_NAME,
+                    generation_config=GENERATION_CONFIG,
+                )
+                self.logger.info(f"✅ Gemini model '{MODEL_NAME}' initialized")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to initialize Gemini model: {e}")
+                self._model = None
+    
+    def _load_system_prompt(self) -> str:
+        """Load system prompt from chaos_prime.md (READ ONLY)."""
+        if self._system_prompt:
+            return self._system_prompt
+        
+        try:
+            if CHAOS_PRIME_PATH.exists():
+                self._system_prompt = CHAOS_PRIME_PATH.read_text(encoding="utf-8")
+                self.logger.info(f"📖 Loaded system prompt from {CHAOS_PRIME_PATH}")
+                return self._system_prompt
+            else:
+                self.logger.warning(f"⚠️ System prompt not found at {CHAOS_PRIME_PATH}")
+                return self._get_fallback_system_prompt()
+        except Exception as e:
+            self.logger.error(f"❌ Error loading system prompt: {e}")
+            return self._get_fallback_system_prompt()
+    
+    def _get_fallback_system_prompt(self) -> str:
+        """Fallback system prompt if file not found."""
+        return """You are Chaos AI, a quantitative trading strategist.
+        Output strict JSON with entry_rules, exit_rules, and confidence_score.
+        Never violate user constraints."""
+    
+    def _build_user_prompt(
+        self,
+        general_info: str,
+        execution_details: str,
+        constraints: str,
+        chart_data: Optional[list[dict]] = None
+    ) -> str:
+        """Build user prompt from 3-prompt structure and chart data."""
+        prompt_parts = []
+        
+        # Section 1: General Info
+        if general_info:
+            prompt_parts.append(f"## GENERAL STRATEGY INFO\n{general_info}")
+        
+        # Section 2: Execution Details
+        if execution_details:
+            prompt_parts.append(f"## EXECUTION DETAILS\n{execution_details}")
+        
+        # Section 3: Constraints (HIGHEST PRIORITY)
+        if constraints:
+            prompt_parts.append(f"## CONSTRAINTS (MUST FOLLOW - HIGHEST PRIORITY)\n{constraints}")
+        
+        # Section 4: Chart Data Summary (last 50 candles)
+        if chart_data and len(chart_data) > 0:
+            # Take last 50 candles for context
+            recent_candles = chart_data[-50:] if len(chart_data) > 50 else chart_data
+            
+            chart_summary = "## RECENT PRICE DATA (Last {} candles)\n".format(len(recent_candles))
+            chart_summary += "| Time | Open | High | Low | Close |\n"
+            chart_summary += "|------|------|------|-----|-------|\n"
+            
+            for candle in recent_candles[-10:]:  # Show last 10 in table
+                chart_summary += f"| {candle.get('time', 'N/A')} | {candle.get('open', 'N/A'):.2f} | {candle.get('high', 'N/A'):.2f} | {candle.get('low', 'N/A'):.2f} | {candle.get('close', 'N/A'):.2f} |\n"
+            
+            # Add key levels
+            closes = [c.get('close', 0) for c in recent_candles if c.get('close')]
+            if closes:
+                chart_summary += f"\n**Recent High:** {max(closes):.2f}"
+                chart_summary += f"\n**Recent Low:** {min(closes):.2f}"
+                chart_summary += f"\n**Current Price:** {closes[-1]:.2f}"
+            
+            prompt_parts.append(chart_summary)
+        
+        # Final instruction
+        prompt_parts.append("""
+## OUTPUT INSTRUCTION
+Analyze the above and return a JSON object with:
+- "logic_summary": Your analysis in 1-2 sentences
+- "entry_rules": Array of entry conditions
+- "exit_rules": Array of exit conditions  
+- "confidence_score": 0-100 integer
+
+Return ONLY valid JSON, no markdown code blocks.""")
+        
+        return "\n\n".join(prompt_parts)
+    
+    def _parse_ai_response(self, response_text: str) -> dict:
+        """
+        Parse AI response, handling markdown code blocks and edge cases.
+        """
+        text = response_text.strip()
+        
+        # Remove markdown code blocks if present
+        if text.startswith("```"):
+            # Find the end of the code block
+            lines = text.split("\n")
+            # Remove first line (```json or ```)
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            # Remove last line if it's just ```
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            text = "\n".join(lines)
+        
+        # Try to extract JSON from text
+        try:
+            # First try direct parse
+            return json.loads(text)
+        except json.JSONDecodeError:
+            # Try to find JSON object in text
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+        
+        self.logger.warning("⚠️ Could not parse AI response as JSON")
+        return {}
+    
+    async def synthesize_async(self, request) -> StrategyLogic:
+        """
+        Async synthesize strategy using Gemini API.
+        
+        Falls back to deterministic strategy if API fails.
+        """
+        self.logger.info("🧠 Starting async strategy synthesis...")
+        
+        # Try Gemini API first
+        if self._model and GEMINI_API_KEY:
+            try:
+                return await self._synthesize_with_gemini(request)
+            except Exception as e:
+                self.logger.error(f"❌ Gemini API error: {e}. Using fallback.")
+        
+        # Fallback to deterministic strategy
+        return self._synthesize_fallback(request)
+    
+    async def _synthesize_with_gemini(self, request) -> StrategyLogic:
+        """Call Gemini API and parse response."""
+        # Load prompts
+        system_prompt = self._load_system_prompt()
+        user_prompt = self._build_user_prompt(
+            general_info=request.general_info or "",
+            execution_details=request.execution_details or "",
+            constraints=request.constraints or "",
+            chart_data=request.drawing_data
+        )
+        
+        self.logger.info(f"📤 Sending request to Gemini ({MODEL_NAME})...")
+        
+        # Combine system and user prompt
+        full_prompt = f"{system_prompt}\n\n---\n\n# USER REQUEST\n\n{user_prompt}"
+        
+        # Call Gemini async
+        response = await self._model.generate_content_async(full_prompt)
+        
+        self.logger.info("📥 Received response from Gemini")
+        
+        # Parse response
+        response_text = response.text
+        parsed = self._parse_ai_response(response_text)
+        
+        # Build StrategyLogic from parsed response
+        return self._build_strategy_from_ai(parsed, request)
+    
+    def _build_strategy_from_ai(self, ai_response: dict, request) -> StrategyLogic:
+        """Convert AI response to StrategyLogic."""
+        # Parse constraints from request
+        parsed_constraints = parse_constraints(request.constraints or "")
+        
+        # Extract entry rules
+        entry_rules = []
+        for rule in ai_response.get("entry_rules", []):
+            if isinstance(rule, dict):
+                entry_rules.append(EntryRule(
+                    condition=rule.get("condition", rule.get("logic", "AI Generated")),
+                    indicator=rule.get("indicator"),
+                    threshold=rule.get("threshold"),
+                    direction=rule.get("direction", "long")
+                ))
+        
+        # Extract exit rules
+        exit_rules = []
+        for rule in ai_response.get("exit_rules", []):
+            if isinstance(rule, dict):
+                exit_rules.append(ExitRule(
+                    condition=rule.get("condition", rule.get("reason", "AI Generated")),
+                    stop_loss_pct=rule.get("stop_loss_pct") or rule.get("value"),
+                    take_profit_pct=rule.get("take_profit_pct"),
+                    trailing_stop=rule.get("trailing_stop", False)
+                ))
+        
+        # Build confidence score
+        confidence = ai_response.get("confidence_score", 75)
+        if isinstance(confidence, (int, float)):
+            confidence = min(100, max(0, confidence)) / 100
+        else:
+            confidence = 0.75
+        
+        return StrategyLogic(
+            strategy_name="Chaos AI Strategy",
+            confidence_score=confidence,
+            logic_summary=ai_response.get("logic_summary", "AI-generated strategy"),
+            indicators=[
+                IndicatorConfig(name="RSI", period=14),
+                IndicatorConfig(name="EMA", period=21),
+                IndicatorConfig(name="SMA", period=request.sma_fast),
+                IndicatorConfig(name="SMA", period=request.sma_slow),
+            ],
+            entry_rules=entry_rules or [EntryRule(
+                condition="SMA Fast crosses above SMA Slow",
+                indicator="SMA_Crossover",
+                direction="long"
+            )],
+            exit_rules=exit_rules or [ExitRule(
+                condition="Stop Loss or Signal Reversal",
+                stop_loss_pct=2.0
+            )],
+            constraints=parsed_constraints,
+            sma_fast=request.sma_fast,
+            sma_slow=request.sma_slow,
+            use_sma_fallback=False
+        )
+    
+    def _synthesize_fallback(self, request) -> StrategyLogic:
+        """Deterministic fallback when API is unavailable."""
+        self.logger.info("🔄 Using deterministic fallback strategy...")
+        
+        parsed_constraints = parse_constraints(request.constraints or "")
+        
+        return StrategyLogic(
+            strategy_name="Fallback SMA Strategy",
+            confidence_score=0.70,
+            logic_summary="Fallback: SMA Crossover with RSI filter",
+            indicators=[
+                IndicatorConfig(name="RSI", period=14, params={"overbought": 70, "oversold": 30}),
+                IndicatorConfig(name="EMA", period=21),
+                IndicatorConfig(name="SMA", period=request.sma_fast),
+                IndicatorConfig(name="SMA", period=request.sma_slow),
+            ],
+            entry_rules=[
+                EntryRule(
+                    condition="RSI below 30 (oversold) with SMA crossover",
+                    indicator="RSI_SMA_Combo",
+                    threshold=30.0,
+                    direction="long"
+                )
+            ],
+            exit_rules=[
+                ExitRule(
+                    condition="RSI above 70 or Stop Loss hit",
+                    take_profit_pct=5.0,
+                    stop_loss_pct=2.0,
+                    trailing_stop=False
+                )
+            ],
+            constraints=parsed_constraints,
+            sma_fast=request.sma_fast,
+            sma_slow=request.sma_slow,
+            use_sma_fallback=False
+        )
+    
+    def synthesize(self, request) -> StrategyLogic:
+        """
+        Synchronous wrapper for backward compatibility.
+        Uses fallback since sync context can't easily call async.
+        """
+        self.logger.info("🧠 Synthesizing Strategy (sync mode)...")
+        
+        if self._model and GEMINI_API_KEY:
+            self.logger.info("⚠️ Sync mode detected. Using fallback. Use synthesize_async() for Gemini.")
+        
+        return self._synthesize_fallback(request)
+
+
+# ============================================================
+# 🔧 UTILITY FUNCTIONS
+# ============================================================
 
 def parse_constraints(constraints_text: str) -> list[Constraint]:
     """
     Parse user constraints from text.
     These constraints are ABSOLUTE and cannot be overridden by AI.
-    
-    Args:
-        constraints_text: Raw constraint text from user
-        
-    Returns:
-        List of parsed Constraint objects
     """
     if not constraints_text or not constraints_text.strip():
         return []
@@ -210,7 +418,6 @@ def parse_constraints(constraints_text: str) -> list[Constraint]:
         if not line or line.startswith('#'):
             continue
             
-        # Remove common prefixes
         for prefix in ['- ', '• ', '* ', '> ']:
             if line.startswith(prefix):
                 line = line[len(prefix):]
@@ -227,6 +434,7 @@ def parse_constraints(constraints_text: str) -> list[Constraint]:
     return parsed
 
 
+# Legacy function for backward compatibility
 def synthesize_strategy(
     general_info: str,
     execution_details: str,
@@ -235,121 +443,21 @@ def synthesize_strategy(
     sma_fast: int = 10,
     sma_slow: int = 30
 ) -> StrategyLogic:
-    """
-    Synthesize strategy logic from 3-prompt input structure.
+    """Legacy synchronous synthesis function."""
+    from models import BacktestRequest
     
-    ⚠️ CONSTRAINT PRIORITY RULE:
-       User Constraints > AI Interpretation
+    # Create a minimal request object
+    class MinimalRequest:
+        def __init__(self):
+            self.general_info = general_info
+            self.execution_details = execution_details
+            self.constraints = constraints
+            self.drawing_data = chart_data
+            self.sma_fast = sma_fast
+            self.sma_slow = sma_slow
     
-    Args:
-        general_info: General strategy description
-        execution_details: Entry, exit, stop loss details
-        constraints: User constraints (HIGHEST PRIORITY)
-        chart_data: Optional OHLCV data for analysis
-        sma_fast: Fallback fast SMA period
-        sma_slow: Fallback slow SMA period
-        
-    Returns:
-        StrategyLogic with synthesized rules
-    """
-    logger.info("🧠 Synthesizing strategy from 3-prompt input...")
-    
-    # Step 1: Parse constraints FIRST (highest priority)
-    parsed_constraints = parse_constraints(constraints)
-    
-    # Step 2: Initialize with RICH indicators for Universal Logic Executor
-    strategy = StrategyLogic(
-        strategy_name="Chaos AI Strategy",
-        confidence_score=0.85,
-        sma_fast=sma_fast,
-        sma_slow=sma_slow,
-        use_sma_fallback=False,  # Use dynamic execution
-        constraints=parsed_constraints,
-        # Pre-populate with RSI and EMA for testing dynamic engine
-        indicators=[
-            IndicatorConfig(name="RSI", period=14, params={"overbought": 70, "oversold": 30}),
-            IndicatorConfig(name="EMA", period=21, params={}),
-            IndicatorConfig(name="SMA", period=sma_fast, params={}),
-            IndicatorConfig(name="SMA", period=sma_slow, params={}),
-        ],
-        entry_rules=[
-            EntryRule(
-                condition="RSI below 30 (oversold) with price above EMA",
-                indicator="RSI_EMA_Combo",
-                threshold=30.0,
-                direction="long"
-            )
-        ],
-        exit_rules=[
-            ExitRule(
-                condition="RSI above 70 (overbought) or Stop Loss hit",
-                take_profit_pct=5.0,
-                stop_loss_pct=2.0,
-                trailing_stop=False
-            )
-        ]
-    )
-    
-    # Step 3: Parse execution details for indicators
-    if execution_details:
-        details_lower = execution_details.lower()
-        
-        # Detect indicators mentioned
-        if 'rsi' in details_lower:
-            strategy.indicators.append(IndicatorConfig(
-                name="RSI",
-                period=14,
-                params={"overbought": 70, "oversold": 30}
-            ))
-            
-        if 'macd' in details_lower:
-            strategy.indicators.append(IndicatorConfig(
-                name="MACD",
-                params={"fast": 12, "slow": 26, "signal": 9}
-            ))
-            
-        if 'sma' in details_lower or 'moving average' in details_lower:
-            strategy.indicators.append(IndicatorConfig(
-                name="SMA",
-                period=sma_slow
-            ))
-            
-        # Detect stop loss percentage from constraints
-        for constraint in parsed_constraints:
-            if 'stop' in constraint.value.lower() and '%' in constraint.value:
-                # Extract percentage - user constraint is ABSOLUTE
-                import re
-                match = re.search(r'(\d+(?:\.\d+)?)\s*%', constraint.value)
-                if match:
-                    sl_pct = float(match.group(1))
-                    strategy.exit_rules.append(ExitRule(
-                        condition=f"Stop Loss at {sl_pct}%",
-                        stop_loss_pct=sl_pct
-                    ))
-                    logger.info(f"⚠️ Applied user constraint: SL = {sl_pct}%")
-    
-    # Step 4: Default entry/exit if none parsed
-    if not strategy.entry_rules:
-        strategy.entry_rules.append(EntryRule(
-            condition="SMA Fast crosses above SMA Slow",
-            indicator="SMA_Crossover",
-            direction="long"
-        ))
-        
-    if not strategy.exit_rules:
-        strategy.exit_rules.append(ExitRule(
-            condition="SMA Fast crosses below SMA Slow",
-            take_profit_pct=None,
-            stop_loss_pct=2.0
-        ))
-    
-    # Log synthesis result
-    logger.info(f"✅ Strategy synthesized: {len(strategy.indicators)} indicators, "
-                f"{len(strategy.entry_rules)} entry rules, "
-                f"{len(strategy.exit_rules)} exit rules, "
-                f"{len(strategy.constraints)} constraints (LOCKED)")
-    
-    return strategy
+    synthesizer = ChaosSynthesizer()
+    return synthesizer.synthesize(MinimalRequest())
 
 
 # ============================================================
