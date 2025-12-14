@@ -150,10 +150,18 @@ function ProChartComponent({
         }));
         candleSeries.setData(candleData);
 
-        // Add trade markers (v5 compatibility)
+        // Add trade markers (v5 compatibility with graceful fallback)
         if (trades.length > 0) {
             const tradeMarkers = createTradeMarkers(trades);
-            (candleSeries as unknown as { setMarkers: (m: unknown[]) => void }).setMarkers(tradeMarkers);
+            try {
+                // Try to use setMarkers if available
+                const series = candleSeries as unknown as { setMarkers?: (m: unknown[]) => void };
+                if (series.setMarkers) {
+                    series.setMarkers(tradeMarkers);
+                }
+            } catch (e) {
+                console.warn('setMarkers not available in this chart version');
+            }
         }
 
         // Fit content
