@@ -33,7 +33,9 @@ chaos_ai = ChaosSynthesizer()
 @app.get("/api/symbols")
 async def get_symbols():
     """Fetch available trading pairs."""
-    return await data_service.get_symbols()
+    await data_service.initialize()
+    symbols = await data_service.get_usdt_symbols()
+    return {"count": len(symbols), "symbols": symbols}
 
 @app.post("/api/backtest", response_model=BacktestResult)
 async def run_backtest(request: BacktestRequest):
@@ -45,6 +47,9 @@ async def run_backtest(request: BacktestRequest):
     """
     try:
         logger.info(f"🚀 Starting backtest for {request.symbol}")
+        
+        # Initialize data service if needed
+        await data_service.initialize()
         
         # 1. Fetch Market Data
         candles = await data_service.fetch_ohlcv(
