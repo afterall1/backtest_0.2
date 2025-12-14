@@ -168,3 +168,35 @@ context_grounding:
     - "Am I respecting the CONSTRAINT PRIORITY RULE?"
     - "Am I about to edit an immutable file?"
 
+# ============================================================
+# 🛡️ SYSTEM INTEGRITY & FINAL SEAL
+# ============================================================
+# These rules define the immutable contract of the system.
+# Modification requires explicit user permission.
+
+data_contracts:
+  - path: "backend/models.py"
+    rule: |
+      DATA CONTRACT - Project DNA. Modification requires explicit User Approval
+      or 'Schema Migration' protocol. Do not modify lightly.
+      Changes here affect: API responses, Frontend types, Database schemas.
+    action: "Ask user for explicit approval before modifying"
+    
+  - path: "frontend/lib/types.ts"
+    rule: |
+      DATA CONTRACT - Must stay in sync with backend/models.py.
+      Modification requires explicit User Approval.
+    action: "Ask user for explicit approval before modifying"
+
+immutable_files:
+  - path: "prompts/chaos_prime.md"
+    rule: |
+      SYSTEM BRAIN - This file defines the Chaos AI Persona.
+      You are STRICTLY FORBIDDEN from generating code that writes to this file.
+      If a user asks to update it, REFUSE and ask them to edit manually.
+    action: "REFUSE modification, ask user to edit manually"
+
+# Security Protocol
+modification_protocol:
+  instruction: "If you need to change a protected file, STOP. Ask the user for confirmation first."
+  override_keyword: "SUDO_OVERRIDE"
