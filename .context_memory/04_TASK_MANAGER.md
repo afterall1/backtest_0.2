@@ -1,74 +1,90 @@
-# 📋 TASK MANAGER — Trader Backtest App
-
-> **Active Task Tracking & Module Status**
-
----
-
-## 🎯 Current Sprint: Chaos AI Integration
-
-### Active Tasks
-- [/] Implement 3-Prompt Input Structure
-- [/] Create Chaos Bridge (AI Logic Layer)
-- [ ] Connect Frontend to Chaos AI endpoint
-- [ ] Test end-to-end flow
+# 📋 PROJECT ROADMAP & TASK MANAGER
+> **Trader Backtest v0.2 - Chaos AI Hybrid System**
 
 ---
 
-## ✅ Completed Modules
-
-| Module | Status | Last Updated |
-|--------|--------|--------------|
-| Phase 1: Data Spine | ✅ Complete | 2025-12-14 |
-| Phase 2: Backtest Engine | ✅ Complete | 2025-12-14 |
-| Phase 3: Analytics | ✅ Complete | 2025-12-14 |
-| Phase 4: Frontend Dashboard | ✅ Complete | 2025-12-14 |
-| System Integration | ✅ Complete | 2025-12-14 |
+## ✅ Phase 1: Data Spine
+- [x] Initialize project structure
+- [x] Setup FastAPI backend
+- [x] Setup Next.js 15 frontend
+- [x] Integrate CCXT for Binance API
+- [x] Implement `data_service.py` with rate limiting
+- [x] Create `/api/symbols` and `/api/ohlcv` endpoints
 
 ---
 
-## 🏗️ Architecture Components
+## ✅ Phase 2: Core Engine (Universal Interpreter)
+- [x] Create `Backtester` class in `engine.py`
+- [x] Implement SMA Crossover strategy (fallback)
+- [x] Build `IndicatorFactory` (SMA, EMA, RSI, MACD, Bollinger)
+- [x] Create `SignalEvaluator` for dynamic rule interpretation
+- [x] Implement `_execute_dynamic_strategy` for JSON logic
+- [x] Exit classification: TARGET, STOP, SIGNAL
 
+---
+
+## ✅ Phase 3: Analytics
+- [x] Implement `PerformanceAnalyzer` class
+- [x] Calculate Sharpe Ratio (365-day annualized)
+- [x] Calculate Sortino Ratio
+- [x] Calculate Max Drawdown ($ and %)
+- [x] Compute Win Rate, Profit Factor
+- [x] Generate Equity Curve and Drawdown Series
+
+---
+
+## ✅ Phase 4: UI/UX
+- [x] Create `StrategyInput` with 3-Prompt Structure
+- [x] Build Cinematic `ChaosVisualizer` (Matrix aesthetic)
+- [x] Implement `ProChart` with Trade Markers
+- [x] Create interactive `TradeList` component
+- [x] Build `TradeDetail` panel with R-Multiple
+- [x] Create `TradeSnapshot` mini-chart with Price Lines
+- [x] Add Error Toast notifications
+- [x] Implement Date Range Selection
+
+---
+
+## 🔄 Phase 5: System Hardening & Context Lock (IN PROGRESS)
+- [x] Create `01_ACTIVE_STATE.md` (Brain Dump)
+- [x] Create `02_ARCHITECTURE_DECISIONS.md`
+- [x] Upgrade `04_TASK_MANAGER.md` (This file)
+- [ ] Reinforce `.cursorrules` with Immutable Files Protocol
+- [ ] Create Centralized API Layer (`api.ts`)
+- [ ] Final dependency audit
+
+---
+
+## [ ] Phase 6: Chaos AI Live Connection (NEXT)
+- [ ] Replace simulation with real LLM API calls
+- [ ] Implement prompt engineering for strategy synthesis
+- [ ] Add response validation and parsing
+- [ ] Create fallback mechanism for API failures
+- [ ] Implement token usage tracking
+
+---
+
+## [ ] Phase 7: Production Readiness
+- [ ] Environment variable configuration
+- [ ] Docker containerization
+- [ ] CI/CD pipeline setup
+- [ ] Performance optimization
+- [ ] Security audit
+
+---
+
+## Known Issues
+| ID | Description | Status |
+|----|-------------|--------|
+| - | None tracked | - |
+
+---
+
+## Quick Commands
+```bash
+# Backend
+cd backend && source venv/bin/activate && uvicorn main:app --reload
+
+# Frontend  
+cd frontend && npm run dev
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    FRONTEND (Next.js)                       │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ generalInfo │  │ execution   │  │ constraints         │  │
-│  │             │  │ Details     │  │ (HIGH PRIORITY)     │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   CHAOS BRIDGE (Python)                     │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │ synthesize_strategy() → StrategyLogic JSON          │    │
-│  │ Rule: User Constraints > AI Interpretation          │    │
-│  └─────────────────────────────────────────────────────┘    │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│               BACKTEST ENGINE (Pandas/NumPy)                │
-│  Mathematical calculation only. No AI logic here.          │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 🐛 Known Issues
-
-| ID | Issue | Status | Priority |
-|----|-------|--------|----------|
-| - | None currently | - | - |
-
----
-
-## 📝 Notes
-
-- `prompts/chaos_prime.md` is PROTECTED (User-only file)
-- All market data is REAL (Binance via CCXT)
-- NO mock data generators allowed
-
----
-
-*Last Updated: 2025-12-14T02:31:50+03:00*

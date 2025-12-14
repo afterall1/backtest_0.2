@@ -113,3 +113,40 @@ ai_behavior:
       - "Execute mathematical calculations"
       - "Run backtests"
       - "Process numerical data"
+
+# ============================================================
+# 🔐 IMMUTABLE FILES PROTOCOL
+# ============================================================
+# These files are ABSOLUTELY READ-ONLY for AI.
+# Any modification request should be REFUSED.
+
+immutable_files:
+  - path: "prompts/chaos_prime.md"
+    rule: |
+      You are STRICTLY FORBIDDEN from generating code that writes to 
+      prompts/chaos_prime.md. If a user asks to update it, REFUSE and 
+      instruct them to edit it manually. This is a HARD LOCK.
+    action: "REFUSE modification, ask user to edit manually"
+    
+  - path: ".context_memory/00_PROJECT_DNA.md"
+    rule: "Core identity file. Modification requires explicit Sudo Override."
+    action: "Require confirmation before any edit"
+
+# ============================================================
+# 🧠 CONTEXT GROUNDING PROTOCOL
+# ============================================================
+# Before answering ANY query, the AI MUST read these files.
+
+context_grounding:
+  mandatory_read:
+    - ".context_memory/01_ACTIVE_STATE.md"
+  instruction: |
+    Before responding to any query, READ .context_memory/01_ACTIVE_STATE.md 
+    to understand the current phase, active constraints, and critical alerts.
+    This grounds your responses in the current project reality.
+    
+  validation_checklist:
+    - "Am I following the NO MOCK DATA constraint?"
+    - "Am I respecting the CONSTRAINT PRIORITY RULE?"
+    - "Am I about to edit an immutable file?"
+
