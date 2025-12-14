@@ -5,7 +5,7 @@
  * Equity curve visualization with Buy/Sell trade markers
  */
 import { useEffect, useRef, memo, useState, useCallback } from 'react';
-import { createChart, IChartApi, LineSeries, Time, ISeriesApi } from 'lightweight-charts';
+import { createChart, IChartApi, CandlestickSeries, Time, ISeriesApi } from 'lightweight-charts';
 import { useAppStore } from '@/lib/store';
 import type { Candle, Trade } from '@/lib/types';
 
@@ -32,7 +32,7 @@ function ProChartComponent({
 }: ProChartProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
-    const seriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const [markers, setMarkers] = useState<MarkerPosition[]>([]);
 
     const { addDrawing, strategyParams } = useAppStore();
@@ -130,26 +130,30 @@ function ProChartComponent({
 
         chartRef.current = chart;
 
-        // Add line series for equity curve
-        const lineSeries = chart.addSeries(LineSeries, {
-            color: '#8b5cf6',
-            lineWidth: 2,
-            priceLineVisible: true,
-            lastValueVisible: true,
+        // Add candlestick series for price data
+        const candleSeries = chart.addSeries(CandlestickSeries, {
+            upColor: '#22c55e',
+            downColor: '#ef4444',
+            borderVisible: false,
+            wickUpColor: '#22c55e',
+            wickDownColor: '#ef4444',
         });
-        seriesRef.current = lineSeries;
+        seriesRef.current = candleSeries;
 
-        // Set equity data
-        const lineData = candles.map(c => ({
+        // Set OHLC candle data
+        const candleData = candles.map(c => ({
             time: c.time as Time,
-            value: c.close,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
         }));
-        lineSeries.setData(lineData);
+        candleSeries.setData(candleData);
 
         // Add trade markers (v5 compatibility)
         if (trades.length > 0) {
             const tradeMarkers = createTradeMarkers(trades);
-            (lineSeries as unknown as { setMarkers: (m: unknown[]) => void }).setMarkers(tradeMarkers);
+            (candleSeries as unknown as { setMarkers: (m: unknown[]) => void }).setMarkers(tradeMarkers);
         }
 
         // Fit content
