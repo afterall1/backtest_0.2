@@ -133,6 +133,24 @@ immutable_files:
     action: "Require confirmation before any edit"
 
 # ============================================================
+# 📋 DATA CONTRACTS (Schema Migration Required)
+# ============================================================
+
+data_contracts:
+  - path: "backend/models.py"
+    rule: |
+      DATA CONTRACT - Project DNA. Modification requires explicit User Approval
+      or 'Schema Migration' protocol. Do not modify lightly.
+      Changes here affect: API responses, Frontend types, Database schemas.
+    action: "Ask user for explicit approval before modifying"
+    
+  - path: "frontend/lib/types.ts"
+    rule: |
+      DATA CONTRACT - Must stay in sync with backend/models.py.
+      Modification requires explicit User Approval or 'Schema Migration' protocol.
+    action: "Ask user for explicit approval before modifying"
+
+# ============================================================
 # 🧠 CONTEXT GROUNDING PROTOCOL
 # ============================================================
 # Before answering ANY query, the AI MUST read these files.

@@ -45,17 +45,17 @@
 
 ---
 
-## 🔄 Phase 5: System Hardening & Context Lock (IN PROGRESS)
+## ✅ Phase 5: System Hardening & Context Lock
 - [x] Create `01_ACTIVE_STATE.md` (Brain Dump)
 - [x] Create `02_ARCHITECTURE_DECISIONS.md`
 - [x] Upgrade `04_TASK_MANAGER.md` (This file)
-- [ ] Reinforce `.cursorrules` with Immutable Files Protocol
-- [ ] Create Centralized API Layer (`api.ts`)
-- [ ] Final dependency audit
+- [x] Reinforce `.cursorrules` with Immutable Files Protocol
+- [x] Create Centralized API Layer (`api.ts`)
+- [x] Initialize `prompts/chaos_prime.md`
 
 ---
 
-## [ ] Phase 6: Chaos AI Live Connection (NEXT)
+## 🔄 Phase 6: Chaos AI Live Connection (CURRENT)
 - [ ] Replace simulation with real LLM API calls
 - [ ] Implement prompt engineering for strategy synthesis
 - [ ] Add response validation and parsing
