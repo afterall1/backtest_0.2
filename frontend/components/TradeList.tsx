@@ -1,86 +1,179 @@
 'use client';
 /**
- * TradeList - Trade History Table
- * ================================
- * Detailed trade log with PnL highlighting
+ * TradeList - Interactive Trade History Table
+ * ============================================
+ * Professional data table with row selection
  */
+import { memo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, CheckCircle, XCircle } from 'lucide-react';
 import type { Trade } from '@/lib/types';
 
 interface TradeListProps {
     trades: Trade[];
+    onSelectTrade: (trade: Trade) => void;
+    selectedTrade?: Trade | null;
 }
 
-export default function TradeList({ trades }: TradeListProps) {
-    const formatTime = (timestamp: number) => {
-        return new Date(timestamp * 1000).toLocaleString('en-US', {
+function TradeListComponent({ trades, onSelectTrade, selectedTrade }: TradeListProps) {
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+    const formatDate = (timestamp: number) => {
+        return new Date(timestamp * 1000).toLocaleDateString('tr-TR', {
+            day: '2-digit',
             month: 'short',
-            day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
         });
     };
 
+    const formatPrice = (price: number) => {
+        return price.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 4,
+        });
+    };
+
+    const formatPnL = (pnl: number) => {
+        const sign = pnl >= 0 ? '+' : '';
+        return `${sign}${pnl.toFixed(4)}`;
+    };
+
+    const formatPercent = (pct: number) => {
+        const sign = pct >= 0 ? '+' : '';
+        return `${sign}${pct.toFixed(2)}%`;
+    };
+
+    if (trades.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-40 text-gray-500 text-sm">
+                No trades to display
+            </div>
+        );
+    }
+
     return (
-        <div className="rounded-xl bg-gray-900/50 border border-gray-700/50 overflow-hidden">
+        <div className="rounded-xl bg-gray-900/50 border border-gray-800 overflow-hidden">
             {/* Header */}
-            <div className="px-4 py-3 bg-gray-800/50 border-b border-gray-700/50">
-                <h3 className="text-sm font-semibold text-gray-300">Trade History</h3>
-                <p className="text-xs text-gray-500">{trades.length} trades executed</p>
+            <div className="px-4 py-3 bg-gray-800/50 border-b border-gray-700 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white">Trade History</h3>
+                <span className="text-xs text-gray-400">{trades.length} trades</span>
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto max-h-64">
+            <div className="overflow-x-auto max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
                 <table className="w-full text-sm">
                     <thead className="bg-gray-800/30 sticky top-0">
-                        <tr className="text-gray-400 text-xs">
-                            <th className="px-4 py-2 text-left">#</th>
-                            <th className="px-4 py-2 text-left">Type</th>
-                            <th className="px-4 py-2 text-left">Entry</th>
-                            <th className="px-4 py-2 text-left">Exit</th>
-                            <th className="px-4 py-2 text-right">Entry Price</th>
-                            <th className="px-4 py-2 text-right">Exit Price</th>
+                        <tr className="text-left text-xs text-gray-400 uppercase tracking-wider">
+                            <th className="px-4 py-2">#</th>
+                            <th className="px-4 py-2">Date</th>
+                            <th className="px-4 py-2">Type</th>
+                            <th className="px-4 py-2 text-right">Entry</th>
+                            <th className="px-4 py-2 text-right">Exit</th>
                             <th className="px-4 py-2 text-right">PnL</th>
                             <th className="px-4 py-2 text-right">%</th>
+                            <th className="px-4 py-2 text-center">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {trades.map((trade, idx) => (
-                            <motion.tr
-                                key={idx}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.02 }}
-                                className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
-                            >
-                                <td className="px-4 py-2 text-gray-500 font-mono">{idx + 1}</td>
-                                <td className="px-4 py-2">
-                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${trade.type === 'long'
-                                            ? 'bg-emerald-500/20 text-emerald-400'
-                                            : 'bg-red-500/20 text-red-400'
+                        {trades.map((trade, index) => {
+                            const isSelected = selectedTrade?.entry_time === trade.entry_time;
+                            const isHovered = hoveredIndex === index;
+                            const isWin = trade.status === 'win';
+                            const isLong = trade.type === 'long';
+
+                            return (
+                                <motion.tr
+                                    key={index}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.03 }}
+                                    onClick={() => onSelectTrade(trade)}
+                                    onMouseEnter={() => setHoveredIndex(index)}
+                                    onMouseLeave={() => setHoveredIndex(null)}
+                                    className={`cursor-pointer transition-all border-b border-gray-800/50 ${isSelected
+                                            ? 'bg-violet-500/20 border-violet-500/50'
+                                            : isHovered
+                                                ? 'bg-gray-800/50'
+                                                : ''
+                                        }`}
+                                >
+                                    {/* Index */}
+                                    <td className="px-4 py-3 font-mono text-gray-500">
+                                        {index + 1}
+                                    </td>
+
+                                    {/* Date */}
+                                    <td className="px-4 py-3 text-gray-300">
+                                        {formatDate(trade.entry_time)}
+                                    </td>
+
+                                    {/* Type */}
+                                    <td className="px-4 py-3">
+                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${isLong
+                                                ? 'bg-green-500/20 text-green-400'
+                                                : 'bg-red-500/20 text-red-400'
+                                            }`}>
+                                            {isLong ? (
+                                                <ArrowUpRight className="w-3 h-3" />
+                                            ) : (
+                                                <ArrowDownRight className="w-3 h-3" />
+                                            )}
+                                            {isLong ? 'Long' : 'Short'}
+                                        </span>
+                                    </td>
+
+                                    {/* Entry Price */}
+                                    <td className="px-4 py-3 text-right font-mono text-gray-300">
+                                        {formatPrice(trade.entry_price)}
+                                    </td>
+
+                                    {/* Exit Price */}
+                                    <td className="px-4 py-3 text-right font-mono text-gray-300">
+                                        {formatPrice(trade.exit_price)}
+                                    </td>
+
+                                    {/* PnL */}
+                                    <td className={`px-4 py-3 text-right font-mono font-medium ${trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'
                                         }`}>
-                                        {trade.type === 'long' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                                        {trade.type.toUpperCase()}
-                                    </span>
-                                </td>
-                                <td className="px-4 py-2 text-gray-400 font-mono text-xs">{formatTime(trade.entry_time)}</td>
-                                <td className="px-4 py-2 text-gray-400 font-mono text-xs">{formatTime(trade.exit_time)}</td>
-                                <td className="px-4 py-2 text-right text-white font-mono">${trade.entry_price.toFixed(2)}</td>
-                                <td className="px-4 py-2 text-right text-white font-mono">${trade.exit_price.toFixed(2)}</td>
-                                <td className={`px-4 py-2 text-right font-mono font-semibold ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                    }`}>
-                                    {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(2)}
-                                </td>
-                                <td className={`px-4 py-2 text-right font-mono text-xs ${trade.pnl_percent >= 0 ? 'text-emerald-400' : 'text-red-400'
-                                    }`}>
-                                    {trade.pnl_percent >= 0 ? '+' : ''}{trade.pnl_percent.toFixed(2)}%
-                                </td>
-                            </motion.tr>
-                        ))}
+                                        {formatPnL(trade.pnl)}
+                                    </td>
+
+                                    {/* PnL Percent */}
+                                    <td className={`px-4 py-3 text-right font-mono text-xs ${trade.pnl_percent >= 0 ? 'text-green-400' : 'text-red-400'
+                                        }`}>
+                                        {formatPercent(trade.pnl_percent)}
+                                    </td>
+
+                                    {/* Status */}
+                                    <td className="px-4 py-3 text-center">
+                                        {isWin ? (
+                                            <CheckCircle className="w-4 h-4 text-green-400 mx-auto" />
+                                        ) : (
+                                            <XCircle className="w-4 h-4 text-red-400 mx-auto" />
+                                        )}
+                                    </td>
+                                </motion.tr>
+                            );
+                        })}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Summary Footer */}
+            <div className="px-4 py-2 bg-gray-800/30 border-t border-gray-700 flex items-center justify-between text-xs">
+                <span className="text-gray-400">
+                    Wins: <span className="text-green-400">{trades.filter(t => t.status === 'win').length}</span>
+                    {' / '}
+                    Losses: <span className="text-red-400">{trades.filter(t => t.status === 'loss').length}</span>
+                </span>
+                <span className={`font-medium ${trades.reduce((sum, t) => sum + t.pnl, 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                    }`}>
+                    Net: {formatPnL(trades.reduce((sum, t) => sum + t.pnl, 0))}
+                </span>
             </div>
         </div>
     );
 }
+
+export default memo(TradeListComponent);

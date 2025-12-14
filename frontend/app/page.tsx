@@ -1,10 +1,10 @@
 'use client';
 /**
- * Dashboard Page - Main Application Entry
- * =========================================
- * State-based rendering with smooth transitions
+ * Dashboard Page - Professional Trading Results View
+ * ====================================================
+ * Chart (60vh) + Two-Column Results Layout
  */
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { useAppStore } from '@/lib/store';
@@ -12,35 +12,54 @@ import StrategyInput from '@/components/StrategyInput';
 import ChaosVisualizer from '@/components/ChaosVisualizer';
 import MetricsGrid from '@/components/MetricsGrid';
 import TradeList from '@/components/TradeList';
+import TradeDetail from '@/components/TradeDetail';
 import { ArrowLeft, Sparkles } from 'lucide-react';
+import type { Trade } from '@/lib/types';
 
 // Dynamic import for chart (SSR disabled)
 const ProChart = dynamic(() => import('@/components/ProChart'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[500px] rounded-xl bg-gray-900/50 animate-pulse flex items-center justify-center">
+    <div className="w-full h-[60vh] rounded-xl bg-gray-900/50 animate-pulse flex items-center justify-center">
       <span className="text-gray-500">Loading chart...</span>
     </div>
   ),
 });
 
 export default function DashboardPage() {
-  const { step, backtestResult, reset, strategyParams } = useAppStore();
+  const { step, backtestResult, reset } = useAppStore();
+  const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   // Fetch symbols on mount
   useEffect(() => {
     useAppStore.getState().fetchSymbols();
   }, []);
 
+  // Scroll to results when backtest completes
+  useEffect(() => {
+    if (step === 'results' && resultsRef.current) {
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
+  }, [step]);
+
+  // Handle trade selection
+  const handleSelectTrade = (trade: Trade) => {
+    setSelectedTrade(trade);
+  };
+
+  const handleCloseTradeDetail = () => {
+    setSelectedTrade(null);
+  };
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white overflow-hidden">
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white overflow-x-hidden">
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none">
-        {/* Gradient orbs */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-600/20 rounded-full blur-3xl" />
-
-        {/* Grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
@@ -51,9 +70,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 container mx-auto px-4 py-8">
+      <div className="relative z-10 container mx-auto px-4 py-6">
         {/* Header */}
-        <header className="flex items-center justify-between mb-8">
+        <header className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <motion.div
               animate={{ rotate: [0, 360] }}
@@ -72,7 +91,10 @@ export default function DashboardPage() {
             <motion.button
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              onClick={reset}
+              onClick={() => {
+                reset();
+                setSelectedTrade(null);
+              }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800/50 border border-gray-700/50 text-gray-300 hover:bg-gray-700/50 transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -113,6 +135,7 @@ export default function DashboardPage() {
           {step === 'results' && backtestResult && (
             <motion.div
               key="results"
+              ref={resultsRef}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -146,7 +169,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Chart Section */}
+              {/* Chart Section - 60vh Dominant */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -164,7 +187,8 @@ export default function DashboardPage() {
                       volume: 0,
                     }))}
                     trades={backtestResult.trades || []}
-                    height={400}
+                    height={Math.min(window.innerHeight * 0.5, 500)}
+                    onTradeClick={handleSelectTrade}
                   />
                 ) : (
                   <div className="w-full h-[400px] flex items-center justify-center text-gray-500">
@@ -173,30 +197,41 @@ export default function DashboardPage() {
                 )}
               </motion.div>
 
-              {/* Metrics Grid */}
-              {backtestResult.metrics && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <MetricsGrid
-                    metrics={backtestResult.metrics}
-                    initialCapital={backtestResult.initial_capital || 10000}
-                  />
-                </motion.div>
-              )}
+              {/* Two-Column Layout: TradeList (70%) + Metrics/Detail (30%) */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="grid grid-cols-1 lg:grid-cols-[70%_30%] gap-4"
+              >
+                {/* Left: Trade List */}
+                <div>
+                  {backtestResult.trades && backtestResult.trades.length > 0 && (
+                    <TradeList
+                      trades={backtestResult.trades}
+                      onSelectTrade={handleSelectTrade}
+                      selectedTrade={selectedTrade}
+                    />
+                  )}
+                </div>
 
-              {/* Trade List */}
-              {backtestResult.trades && backtestResult.trades.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <TradeList trades={backtestResult.trades} />
-                </motion.div>
-              )}
+                {/* Right: Metrics + Trade Detail */}
+                <div className="space-y-4">
+                  {/* Metrics Grid */}
+                  {backtestResult.metrics && (
+                    <MetricsGrid
+                      metrics={backtestResult.metrics}
+                      initialCapital={backtestResult.initial_capital || 10000}
+                    />
+                  )}
+
+                  {/* Trade Detail Panel */}
+                  <TradeDetail
+                    trade={selectedTrade}
+                    onClose={handleCloseTradeDetail}
+                  />
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

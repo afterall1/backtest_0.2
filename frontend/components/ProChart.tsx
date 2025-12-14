@@ -1,18 +1,20 @@
 'use client';
 /**
- * ProChart - Advanced Chart with Drawing Overlay
- * ================================================
- * SSR-safe line chart with click-to-mark capability
+ * ProChart - Professional Trading Chart with Trade Markers
+ * =========================================================
+ * Equity curve visualization with Buy/Sell trade markers
  */
-import { useEffect, useRef, memo, useState } from 'react';
-import { createChart, IChartApi, LineSeries, Time } from 'lightweight-charts';
+import { useEffect, useRef, memo, useState, useCallback } from 'react';
+import { createChart, IChartApi, LineSeries, Time, ISeriesApi } from 'lightweight-charts';
 import { useAppStore } from '@/lib/store';
-import type { Candle } from '@/lib/types';
+import type { Candle, Trade } from '@/lib/types';
 
 interface ProChartProps {
     candles: Candle[];
+    trades?: Trade[];
     height?: number;
     enableDrawing?: boolean;
+    onTradeClick?: (trade: Trade) => void;
 }
 
 interface MarkerPosition {
@@ -21,13 +23,66 @@ interface MarkerPosition {
     label: string;
 }
 
-function ProChartComponent({ candles, height = 500, enableDrawing = false }: ProChartProps) {
+function ProChartComponent({
+    candles,
+    trades = [],
+    height = 500,
+    enableDrawing = false,
+    onTradeClick
+}: ProChartProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
+    const seriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const [markers, setMarkers] = useState<MarkerPosition[]>([]);
 
     const { addDrawing, strategyParams } = useAppStore();
     const drawings = strategyParams.drawing_data || [];
+
+    // Create trade markers for the chart
+    const createTradeMarkers = useCallback((tradesToMark: Trade[]) => {
+        if (!tradesToMark.length) return [];
+
+        const chartMarkers: Array<{
+            time: Time;
+            position: 'aboveBar' | 'belowBar';
+            color: string;
+            shape: 'arrowUp' | 'arrowDown' | 'circle';
+            text: string;
+        }> = [];
+
+        tradesToMark.forEach((trade, idx) => {
+            // Entry marker
+            if (trade.type === 'long') {
+                chartMarkers.push({
+                    time: trade.entry_time as Time,
+                    position: 'belowBar',
+                    color: '#22c55e', // Green
+                    shape: 'arrowUp',
+                    text: `L${idx + 1}`,
+                });
+            } else {
+                chartMarkers.push({
+                    time: trade.entry_time as Time,
+                    position: 'aboveBar',
+                    color: '#ef4444', // Red
+                    shape: 'arrowDown',
+                    text: `S${idx + 1}`,
+                });
+            }
+
+            // Exit marker
+            chartMarkers.push({
+                time: trade.exit_time as Time,
+                position: trade.pnl > 0 ? 'aboveBar' : 'belowBar',
+                color: trade.pnl > 0 ? '#22c55e' : '#ef4444',
+                shape: 'circle',
+                text: `X${idx + 1}`,
+            });
+        });
+
+        // Sort by time
+        return chartMarkers.sort((a, b) => (a.time as number) - (b.time as number));
+    }, []);
 
     useEffect(() => {
         if (!containerRef.current || candles.length === 0) return;
@@ -76,19 +131,25 @@ function ProChartComponent({ candles, height = 500, enableDrawing = false }: Pro
             priceLineVisible: true,
             lastValueVisible: true,
         });
+        seriesRef.current = lineSeries;
 
-        // Set equity data with proper Time type
+        // Set equity data
         const lineData = candles.map(c => ({
             time: c.time as Time,
             value: c.close,
         }));
-
         lineSeries.setData(lineData);
+
+        // Add trade markers
+        if (trades.length > 0) {
+            const tradeMarkers = createTradeMarkers(trades);
+            lineSeries.setMarkers(tradeMarkers);
+        }
 
         // Fit content
         chart.timeScale().fitContent();
 
-        // Click handler for drawing
+        // Click handler for drawing mode
         const handleClick = (e: MouseEvent) => {
             if (!enableDrawing || !containerRef.current) return;
 
@@ -96,12 +157,10 @@ function ProChartComponent({ candles, height = 500, enableDrawing = false }: Pro
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
-            // Get approximate time and price from click position
             const timeScale = chart.timeScale();
             const time = timeScale.coordinateToTime(x);
 
             if (time) {
-                // Find closest candle
                 const closestCandle = candles.reduce((prev, curr) => {
                     return Math.abs(curr.time - (time as number)) < Math.abs(prev.time - (time as number)) ? curr : prev;
                 });
@@ -113,7 +172,6 @@ function ProChartComponent({ candles, height = 500, enableDrawing = false }: Pro
                     label: `Mark ${drawings.length + 1}`,
                 });
 
-                // Add visual marker
                 setMarkers(prev => [...prev, { x, y, label: `Mark ${drawings.length + 1}` }]);
             }
         };
@@ -139,11 +197,11 @@ function ProChartComponent({ candles, height = 500, enableDrawing = false }: Pro
             resizeObserver.disconnect();
             chart.remove();
         };
-    }, [candles, height, enableDrawing, addDrawing, drawings.length]);
+    }, [candles, trades, height, enableDrawing, addDrawing, drawings.length, createTradeMarkers]);
 
     return (
         <div
-            className="relative w-full rounded-xl overflow-hidden bg-gray-900/50"
+            className="relative w-full rounded-xl overflow-hidden bg-gray-900/50 border border-gray-800"
             style={{ height }}
         >
             {/* Chart Container */}
@@ -152,6 +210,13 @@ function ProChartComponent({ candles, height = 500, enableDrawing = false }: Pro
                 className="w-full h-full"
                 style={{ cursor: enableDrawing ? 'crosshair' : 'default' }}
             />
+
+            {/* Trade Count Badge */}
+            {trades.length > 0 && (
+                <div className="absolute top-2 left-2 z-20 px-2 py-1 rounded bg-violet-500/20 border border-violet-500/50 text-violet-300 text-xs font-medium">
+                    📈 {trades.length} Trades
+                </div>
+            )}
 
             {/* Drawing Markers Overlay */}
             {enableDrawing && markers.map((marker, idx) => (
@@ -169,6 +234,22 @@ function ProChartComponent({ candles, height = 500, enableDrawing = false }: Pro
                     🎯 Click to Mark ({drawings.length})
                 </div>
             )}
+
+            {/* Legend */}
+            <div className="absolute bottom-2 right-2 z-20 flex items-center gap-3 px-2 py-1 rounded bg-gray-900/80 text-xs">
+                <span className="flex items-center gap-1">
+                    <span className="w-0 h-0 border-l-4 border-r-4 border-b-6 border-l-transparent border-r-transparent border-b-green-500" />
+                    Long Entry
+                </span>
+                <span className="flex items-center gap-1">
+                    <span className="w-0 h-0 border-l-4 border-r-4 border-t-6 border-l-transparent border-r-transparent border-t-red-500" />
+                    Short Entry
+                </span>
+                <span className="flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-gray-400" />
+                    Exit
+                </span>
+            </div>
         </div>
     );
 }
