@@ -39,6 +39,12 @@ export interface Trade {
     pnl_percent: number;
     type: TradeType;
     status: TradeStatus;
+    // Exit Classification
+    exit_reason?: 'TARGET' | 'STOP' | 'SIGNAL';
+    entry_logic?: string;
+    // Price Levels
+    sl_price?: number;
+    tp_price?: number;
 }
 
 // Equity Curve Point

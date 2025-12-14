@@ -1,20 +1,30 @@
 'use client';
 /**
- * TradeDetail - Trade Analysis Panel
- * ====================================
- * Slide-over panel showing detailed trade metrics
+ * TradeDetail - Trade Analysis Panel with Mini Chart
+ * ====================================================
+ * Slide-over panel showing detailed trade metrics and snapshot
  */
 import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, TrendingUp, TrendingDown, Clock, DollarSign, Target, AlertTriangle } from 'lucide-react';
-import type { Trade } from '@/lib/types';
+import dynamic from 'next/dynamic';
+import { X, TrendingUp, TrendingDown, Clock, Target, AlertTriangle, Zap } from 'lucide-react';
+import type { Trade, Candle } from '@/lib/types';
+
+// Dynamic import for TradeSnapshot (SSR disabled)
+const TradeSnapshot = dynamic(() => import('./TradeSnapshot'), {
+    ssr: false,
+    loading: () => (
+        <div className="h-[150px] rounded-lg bg-gray-800/30 animate-pulse" />
+    ),
+});
 
 interface TradeDetailProps {
     trade: Trade | null;
+    candles?: Candle[];
     onClose: () => void;
 }
 
-function TradeDetailComponent({ trade, onClose }: TradeDetailProps) {
+function TradeDetailComponent({ trade, candles = [], onClose }: TradeDetailProps) {
     if (!trade) return null;
 
     const isWin = trade.status === 'win';
@@ -42,8 +52,10 @@ function TradeDetailComponent({ trade, onClose }: TradeDetailProps) {
         return `${sign}${pnl.toFixed(4)}`;
     };
 
-    // Calculate R-Multiple (assuming 2% stop loss as default)
-    const stopLossPct = 2;
+    // Calculate R-Multiple
+    const stopLossPct = trade.sl_price
+        ? Math.abs((trade.entry_price - trade.sl_price) / trade.entry_price * 100)
+        : 2;
     const rMultiple = Math.abs(trade.pnl_percent) / stopLossPct;
     const rMultipleDisplay = trade.pnl >= 0 ? `+${rMultiple.toFixed(2)}R` : `-${rMultiple.toFixed(2)}R`;
 
@@ -51,6 +63,18 @@ function TradeDetailComponent({ trade, onClose }: TradeDetailProps) {
     const durationMs = (trade.exit_time - trade.entry_time) * 1000;
     const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
     const durationMins = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    // Exit reason badge
+    const getExitReasonBadge = () => {
+        switch (trade.exit_reason) {
+            case 'TARGET':
+                return <span className="px-2 py-0.5 rounded text-xs bg-green-500/20 text-green-400">🎯 Target</span>;
+            case 'STOP':
+                return <span className="px-2 py-0.5 rounded text-xs bg-red-500/20 text-red-400">🛑 Stop</span>;
+            default:
+                return <span className="px-2 py-0.5 rounded text-xs bg-gray-500/20 text-gray-400">Signal</span>;
+        }
+    };
 
     return (
         <AnimatePresence>
@@ -72,6 +96,7 @@ function TradeDetailComponent({ trade, onClose }: TradeDetailProps) {
                         <span className={`font-semibold ${isWin ? 'text-green-400' : 'text-red-400'}`}>
                             {isLong ? 'Long' : 'Short'} Trade - {isWin ? 'WIN' : 'LOSS'}
                         </span>
+                        {getExitReasonBadge()}
                     </div>
                     <button
                         onClick={onClose}
@@ -82,86 +107,89 @@ function TradeDetailComponent({ trade, onClose }: TradeDetailProps) {
                 </div>
 
                 {/* Content */}
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-3">
+                    {/* Trade Snapshot Chart */}
+                    {candles.length > 0 && (
+                        <TradeSnapshot
+                            candles={candles}
+                            trade={trade}
+                            height={150}
+                        />
+                    )}
+
                     {/* Strategy Logic Summary */}
                     <div className="p-3 rounded-lg bg-gray-800/50 border border-gray-700/50">
                         <div className="flex items-center gap-2 mb-1">
-                            <Target className="w-4 h-4 text-violet-400" />
-                            <span className="text-xs text-gray-400 uppercase tracking-wider">Koşul Özeti</span>
+                            <Zap className="w-4 h-4 text-violet-400" />
+                            <span className="text-xs text-gray-400 uppercase tracking-wider">Entry Logic</span>
                         </div>
-                        <p className="text-sm text-gray-300">
-                            Strategy Logic: SMA Crossover Detection
+                        <p className="text-sm text-gray-300 font-mono">
+                            {trade.entry_logic || 'SMA Crossover Detection'}
                         </p>
                     </div>
 
                     {/* Entry/Exit Details */}
-                    <div className="grid grid-cols-2 gap-3">
-                        {/* Entry */}
-                        <div className="p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
-                            <div className="flex items-center gap-1 mb-2 text-green-400">
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="p-2 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                            <div className="flex items-center gap-1 mb-1 text-blue-400">
                                 <Clock className="w-3 h-3" />
-                                <span className="text-xs uppercase">Entry</span>
+                                <span className="text-[10px] uppercase">Entry</span>
                             </div>
-                            <p className="text-xs text-gray-400 mb-1">{formatDateTime(trade.entry_time)}</p>
-                            <p className="text-lg font-mono font-semibold text-white">
+                            <p className="text-[10px] text-gray-400">{formatDateTime(trade.entry_time)}</p>
+                            <p className="text-sm font-mono font-semibold text-white">
                                 ${formatPrice(trade.entry_price)}
                             </p>
                         </div>
 
-                        {/* Exit */}
-                        <div className="p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
-                            <div className="flex items-center gap-1 mb-2 text-red-400">
-                                <Clock className="w-3 h-3" />
-                                <span className="text-xs uppercase">Exit</span>
+                        <div className="p-2 rounded-lg bg-gray-800/30 border border-gray-700/30">
+                            <div className="flex items-center gap-1 mb-1 text-orange-400">
+                                <Target className="w-3 h-3" />
+                                <span className="text-[10px] uppercase">Exit</span>
                             </div>
-                            <p className="text-xs text-gray-400 mb-1">{formatDateTime(trade.exit_time)}</p>
-                            <p className="text-lg font-mono font-semibold text-white">
+                            <p className="text-[10px] text-gray-400">{formatDateTime(trade.exit_time)}</p>
+                            <p className="text-sm font-mono font-semibold text-white">
                                 ${formatPrice(trade.exit_price)}
                             </p>
                         </div>
                     </div>
 
                     {/* Metrics Grid */}
-                    <div className="grid grid-cols-3 gap-2">
-                        {/* PnL */}
-                        <div className="p-2 rounded-lg bg-gray-800/30 text-center">
-                            <p className="text-xs text-gray-400 mb-1">Gross P/L</p>
-                            <p className={`text-sm font-mono font-bold ${trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'
-                                }`}>
+                    <div className="grid grid-cols-3 gap-1.5">
+                        <div className="p-1.5 rounded-lg bg-gray-800/30 text-center">
+                            <p className="text-[10px] text-gray-400">P/L</p>
+                            <p className={`text-xs font-mono font-bold ${trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 {formatPnL(trade.pnl)}
                             </p>
                         </div>
 
-                        {/* Percent */}
-                        <div className="p-2 rounded-lg bg-gray-800/30 text-center">
-                            <p className="text-xs text-gray-400 mb-1">Return %</p>
-                            <p className={`text-sm font-mono font-bold ${trade.pnl_percent >= 0 ? 'text-green-400' : 'text-red-400'
-                                }`}>
+                        <div className="p-1.5 rounded-lg bg-gray-800/30 text-center">
+                            <p className="text-[10px] text-gray-400">%</p>
+                            <p className={`text-xs font-mono font-bold ${trade.pnl_percent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 {trade.pnl_percent >= 0 ? '+' : ''}{trade.pnl_percent.toFixed(2)}%
                             </p>
                         </div>
 
-                        {/* R-Multiple */}
-                        <div className="p-2 rounded-lg bg-gray-800/30 text-center">
-                            <p className="text-xs text-gray-400 mb-1">R-Multiple</p>
-                            <p className={`text-sm font-mono font-bold ${trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'
-                                }`}>
+                        <div className="p-1.5 rounded-lg bg-gray-800/30 text-center">
+                            <p className="text-[10px] text-gray-400">R</p>
+                            <p className={`text-xs font-mono font-bold ${trade.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                 {rMultipleDisplay}
                             </p>
                         </div>
                     </div>
 
-                    {/* Duration */}
-                    <div className="flex items-center justify-between text-xs text-gray-400 px-1">
-                        <span>Duration:</span>
-                        <span className="font-mono">{durationHours}h {durationMins}m</span>
+                    {/* Duration + SL/TP */}
+                    <div className="flex items-center justify-between text-[10px] text-gray-400 px-1">
+                        <span>Duration: <span className="font-mono text-gray-300">{durationHours}h {durationMins}m</span></span>
+                        {trade.sl_price && (
+                            <span>SL: <span className="font-mono text-red-400">${formatPrice(trade.sl_price)}</span></span>
+                        )}
                     </div>
 
-                    {/* Warning if loss */}
-                    {!isWin && (
-                        <div className="flex items-center gap-2 p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-xs">
+                    {/* Warning */}
+                    {trade.exit_reason === 'STOP' && (
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
                             <AlertTriangle className="w-4 h-4" />
-                            <span>Stop Loss triggered or signal reversed</span>
+                            <span>Stop Loss triggered</span>
                         </div>
                     )}
                 </div>

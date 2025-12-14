@@ -46,6 +46,18 @@ class Trade(BaseModel):
     pnl_percent: float = Field(..., description="Profit/Loss percentage")
     type: TradeType = Field(..., description="Trade direction (long/short)")
     status: TradeStatus = Field(..., description="Trade outcome (win/loss)")
+    # Exit Classification
+    exit_reason: Optional[str] = Field(
+        default="SIGNAL",
+        description="Exit reason: TARGET, STOP, or SIGNAL"
+    )
+    entry_logic: Optional[str] = Field(
+        default=None,
+        description="Entry condition description (e.g., 'RSI < 30')"
+    )
+    # Price Levels for Visualization
+    sl_price: Optional[float] = Field(default=None, description="Stop Loss price level")
+    tp_price: Optional[float] = Field(default=None, description="Take Profit price level")
 
 
 class EquityPoint(BaseModel):

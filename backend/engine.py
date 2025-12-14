@@ -399,6 +399,19 @@ class Backtester:
                     
                     status = TradeStatus.WIN if pnl > 0 else TradeStatus.LOSS if pnl < 0 else TradeStatus.BREAKEVEN
                     
+                    # Map exit reason to enum-like values
+                    exit_reason_map = {
+                        "stop_loss": "STOP",
+                        "take_profit": "TARGET", 
+                        "signal": "SIGNAL"
+                    }
+                    
+                    # Calculate TP level (assume 2:1 risk/reward if SL exists)
+                    tp_level = None
+                    if position.get('stop_loss'):
+                        sl_distance = entry_price - position['stop_loss']
+                        tp_level = entry_price + (sl_distance * 2)  # 2:1 R/R
+                    
                     trade = Trade(
                         entry_time=position['entry_time'],
                         exit_time=timestamp,
@@ -407,7 +420,11 @@ class Backtester:
                         pnl=round(pnl, 4),
                         pnl_percent=round(pnl_percent, 4),
                         type=position['type'],
-                        status=status
+                        status=status,
+                        exit_reason=exit_reason_map.get(exit_reason, "SIGNAL"),
+                        entry_logic="SMA Crossover + RSI Filter",
+                        sl_price=position.get('stop_loss'),
+                        tp_price=tp_level
                     )
                     trades.append(trade)
                     position = None

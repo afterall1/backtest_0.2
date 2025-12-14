@@ -70,13 +70,19 @@ function ProChartComponent({
                 });
             }
 
-            // Exit marker
+            // Exit marker with reason label
+            const exitText = trade.exit_reason === 'TARGET'
+                ? 'Target 🎯'
+                : trade.exit_reason === 'STOP'
+                    ? 'Stop 🛑'
+                    : `X${idx + 1}`;
+
             chartMarkers.push({
                 time: trade.exit_time as Time,
                 position: trade.pnl > 0 ? 'aboveBar' : 'belowBar',
                 color: trade.pnl > 0 ? '#22c55e' : '#ef4444',
                 shape: 'circle',
-                text: `X${idx + 1}`,
+                text: exitText,
             });
         });
 
@@ -140,10 +146,10 @@ function ProChartComponent({
         }));
         lineSeries.setData(lineData);
 
-        // Add trade markers
+        // Add trade markers (v5 compatibility)
         if (trades.length > 0) {
             const tradeMarkers = createTradeMarkers(trades);
-            lineSeries.setMarkers(tradeMarkers);
+            (lineSeries as unknown as { setMarkers: (m: unknown[]) => void }).setMarkers(tradeMarkers);
         }
 
         // Fit content
