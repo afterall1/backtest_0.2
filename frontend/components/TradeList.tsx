@@ -60,11 +60,14 @@ function TradeListComponent({ trades, onSelectTrade, selectedTrade }: TradeListP
                 <span className="text-xs text-gray-400">{trades.length} trades</span>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700">
+            {/* Table Container - Scrollable with Sticky Header */}
+            <div className="relative max-h-[600px] overflow-y-auto overflow-x-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900/50">
+                {/* Scroll Shadow Indicator */}
+                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-900/90 to-transparent pointer-events-none z-10" />
+
                 <table className="w-full text-sm">
-                    <thead className="bg-gray-800/30 sticky top-0">
-                        <tr className="text-left text-xs text-gray-400 uppercase tracking-wider">
+                    <thead className="bg-gray-800/95 sticky top-0 z-20 shadow-md shadow-black/30 backdrop-blur-sm">
+                        <tr className="text-left text-xs text-gray-400 uppercase tracking-wider border-b border-gray-700">
                             <th className="px-4 py-2">#</th>
                             <th className="px-4 py-2">Date</th>
                             <th className="px-4 py-2">Type</th>
@@ -92,10 +95,10 @@ function TradeListComponent({ trades, onSelectTrade, selectedTrade }: TradeListP
                                     onMouseEnter={() => setHoveredIndex(index)}
                                     onMouseLeave={() => setHoveredIndex(null)}
                                     className={`cursor-pointer transition-all border-b border-gray-800/50 ${isSelected
-                                            ? 'bg-violet-500/20 border-violet-500/50'
-                                            : isHovered
-                                                ? 'bg-gray-800/50'
-                                                : ''
+                                        ? 'bg-violet-500/20 border-violet-500/50'
+                                        : isHovered
+                                            ? 'bg-gray-800/50'
+                                            : ''
                                         }`}
                                 >
                                     {/* Index */}
@@ -111,8 +114,8 @@ function TradeListComponent({ trades, onSelectTrade, selectedTrade }: TradeListP
                                     {/* Type */}
                                     <td className="px-4 py-3">
                                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${isLong
-                                                ? 'bg-green-500/20 text-green-400'
-                                                : 'bg-red-500/20 text-red-400'
+                                            ? 'bg-green-500/20 text-green-400'
+                                            : 'bg-red-500/20 text-red-400'
                                             }`}>
                                             {isLong ? (
                                                 <ArrowUpRight className="w-3 h-3" />

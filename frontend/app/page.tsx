@@ -27,8 +27,10 @@ const ProChart = dynamic(() => import('@/components/ProChart'), {
 });
 
 export default function DashboardPage() {
-  const { step, backtestResult, reset } = useAppStore();
+  const { step, backtestResult, reset, error, clearError } = useAppStore();
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const resultsRef = useRef<HTMLDivElement>(null);
 
   // Fetch symbols on mount
@@ -45,6 +47,22 @@ export default function DashboardPage() {
     }
   }, [step]);
 
+  // Error Toast Effect
+  useEffect(() => {
+    if (error) {
+      setToastMessage(error);
+      setShowToast(true);
+
+      // Auto-dismiss after 5 seconds
+      const timer = setTimeout(() => {
+        setShowToast(false);
+        clearError();
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [error, clearError]);
+
   // Handle trade selection
   const handleSelectTrade = (trade: Trade) => {
     setSelectedTrade(trade);
@@ -52,6 +70,11 @@ export default function DashboardPage() {
 
   const handleCloseTradeDetail = () => {
     setSelectedTrade(null);
+  };
+
+  const handleDismissToast = () => {
+    setShowToast(false);
+    clearError();
   };
 
   return (
@@ -236,6 +259,45 @@ export default function DashboardPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Error Toast Notification */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: 50 }}
+            animate={{ opacity: 1, y: 0, x: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-4 right-4 z-50 max-w-sm"
+          >
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/90 border border-red-400 shadow-2xl shadow-red-500/30 backdrop-blur-sm">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-white">Error</p>
+                <p className="text-xs text-red-100 mt-1">{toastMessage}</p>
+              </div>
+              <button
+                onClick={handleDismissToast}
+                className="flex-shrink-0 p-1 rounded-lg hover:bg-red-600 text-white/80 hover:text-white transition-colors"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            {/* Progress bar */}
+            <motion.div
+              initial={{ scaleX: 1 }}
+              animate={{ scaleX: 0 }}
+              transition={{ duration: 5, ease: 'linear' }}
+              className="h-1 bg-white/50 rounded-b-xl origin-left mt-0.5"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
