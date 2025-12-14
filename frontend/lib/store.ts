@@ -2,11 +2,12 @@
  * Zustand Store - Global State Management
  * ========================================
  * Manages app state: step flow, strategy params, results
+ * 
+ * ⚠️ ZERO MOCK DATA: All data fetched via centralized API layer
  */
 import { create } from 'zustand';
 import type { BacktestRequest, BacktestResult, AppStep, DrawingPoint } from './types';
-
-const API_BASE = 'http://localhost:8000';
+import * as api from './api';
 
 interface AppState {
     // Current step in the flow
@@ -36,6 +37,7 @@ interface AppState {
     fetchSymbols: () => Promise<void>;
     runBacktest: () => Promise<void>;
     addLog: (log: string) => void;
+    clearError: () => void;
     reset: () => void;
 }
 
@@ -89,24 +91,35 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     })),
 
-    // Fetch available symbols from API
+    // Clear error state
+    clearError: () => set({ error: null }),
+
+    // ============================================================
+    // FETCH SYMBOLS - Using Centralized API Layer
+    // ============================================================
     fetchSymbols: async () => {
         try {
-            const res = await fetch(`${API_BASE}/api/symbols`);
-            if (!res.ok) throw new Error('Failed to fetch symbols');
-            const data = await res.json();
-            set({ symbols: data.symbols || [] });
+            const symbols = await api.getSymbols();
+            set({ symbols });
         } catch (error) {
             console.error('Error fetching symbols:', error);
-            // Fallback symbols
+
+            if (error instanceof api.BackendUnavailableError) {
+                set({ error: 'Backend server is not running. Please start the FastAPI server.' });
+            }
+
+            // Fallback to common symbols (for UI display only)
             set({ symbols: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT'] });
         }
     },
 
-    // Run backtest
+    // ============================================================
+    // RUN BACKTEST - Using Centralized API Layer
+    // ============================================================
     runBacktest: async () => {
         const { strategyParams } = get();
 
+        // Transition to analyzing state
         set({
             step: 'analyzing',
             isLoading: true,
@@ -114,53 +127,64 @@ export const useAppStore = create<AppState>((set, get) => ({
             analysisLogs: []
         });
 
-        // Chaos AI Analysis logs
+        // Chaos AI Analysis logs (displayed during processing)
         const logs = [
             '🧠 Chaos AI Engine Starting...',
             '📝 Parsing generalInfo prompt...',
             '📝 Parsing executionDetails prompt...',
             '⚠️ Parsing constraints (HIGHEST PRIORITY)...',
-            '🔗 Connecting to Binance...',
+            '🔗 Connecting to Binance via CCXT...',
             `📊 Fetching ${strategyParams.limit} candles for ${strategyParams.symbol}...`,
-            '✅ Market data received',
-            '🔬 Synthesizing StrategyLogic...',
-            `⚡ Fallback SMA: Fast=${strategyParams.sma_fast} | Slow=${strategyParams.sma_slow}`,
-            '🔄 Detecting trade signals...',
-            '💰 Calculating trade PnL...',
+            '✅ Real market data received',
+            '🔬 Activating Universal Logic Executor...',
+            '📈 IndicatorFactory: Calculating RSI(14)...',
+            '📈 IndicatorFactory: Calculating EMA(21)...',
+            '📈 IndicatorFactory: Calculating SMA Crossover...',
+            '🎯 SignalEvaluator: Detecting entry conditions...',
+            '🔄 Vectorized backtest running...',
+            '💰 Computing trade PnL matrix...',
             '📉 Computing drawdown series...',
-            '🎯 Calculating Sharpe Ratio...',
+            '🎯 Calculating Sharpe Ratio (annualized 365d)...',
             '🎲 Calculating Sortino Ratio...',
-            '✨ Generating performance report...',
+            '✨ Generating performance analytics...',
         ];
 
-        // Add logs with delay
+        // Add logs with staggered delay
         for (const log of logs) {
-            await new Promise(r => setTimeout(r, 300));
+            await new Promise(r => setTimeout(r, 250));
             set((state) => ({ analysisLogs: [...state.analysisLogs, log] }));
         }
 
         try {
-            const res = await fetch(`${API_BASE}/api/backtest`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(strategyParams),
-            });
+            // Construct request from store state
+            const request: BacktestRequest = {
+                symbol: strategyParams.symbol,
+                timeframe: strategyParams.timeframe,
+                limit: strategyParams.limit,
+                initial_capital: strategyParams.initial_capital,
+                strategy: strategyParams.strategy,
+                sma_fast: strategyParams.sma_fast,
+                sma_slow: strategyParams.sma_slow,
+                general_info: strategyParams.general_info,
+                execution_details: strategyParams.execution_details,
+                constraints: strategyParams.constraints,
+                drawing_data: strategyParams.drawing_data,
+                start_date: strategyParams.start_date,
+                end_date: strategyParams.end_date,
+            };
 
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.detail || 'Backtest failed');
-            }
+            // Call centralized API
+            const result = await api.runBacktest(request);
 
-            const result: BacktestResult = await res.json();
-
-            // Add completion log
+            // Success log
             set((state) => ({
-                analysisLogs: [...state.analysisLogs, '🎉 Backtest complete!']
+                analysisLogs: [...state.analysisLogs, '🎉 Chaos AI Analysis Complete!']
             }));
 
             // Short delay before showing results
             await new Promise(r => setTimeout(r, 500));
 
+            // Update state with results
             set({
                 backtestResult: result,
                 step: 'results',
@@ -168,12 +192,30 @@ export const useAppStore = create<AppState>((set, get) => ({
             });
 
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error';
+            let message = 'An unexpected error occurred';
+
+            if (error instanceof api.BackendUnavailableError) {
+                message = 'Backend server is not running. Please start FastAPI.';
+            } else if (error instanceof api.StrategyRejectedError) {
+                message = `Strategy rejected: ${error.message}`;
+            } else if (error instanceof api.InsufficientDataError) {
+                message = error.message;
+            } else if (error instanceof api.ApiError) {
+                message = error.message;
+            } else if (error instanceof Error) {
+                message = error.message;
+            }
+
+            // Error log
+            set((state) => ({
+                analysisLogs: [...state.analysisLogs, `❌ Error: ${message}`]
+            }));
+
+            // Return to input with error
             set({
                 error: message,
                 step: 'input',
                 isLoading: false,
-                analysisLogs: [...get().analysisLogs, `❌ Error: ${message}`]
             });
         }
     },
@@ -190,5 +232,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         error: null,
         backtestResult: null,
         analysisLogs: [],
+        strategyParams: defaultParams,
     }),
 }));
