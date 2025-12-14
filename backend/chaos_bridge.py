@@ -34,7 +34,7 @@ else:
     logger.warning("⚠️ GEMINI_API_KEY not found. AI features will use fallback mode.")
 
 # Model Configuration
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = "gemini-3-pro-preview"  # Latest model (Nov 2025)
 GENERATION_CONFIG = {
     "temperature": 0.7,
     "top_p": 0.95,
