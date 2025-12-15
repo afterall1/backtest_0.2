@@ -1,343 +1,189 @@
 'use client';
 /**
- * StrategyInput - 3-Prompt Chaos AI Input System
- * ================================================
- * Bloomberg/Pro aesthetic with tabbed input structure
+ * StrategyInput - Cyber HUD Strategy Configuration
+ * =================================================
+ * Bloomberg Terminal 2077 Aesthetic
  */
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    Rocket,
-    TrendingUp,
-    Clock,
-    DollarSign,
-    FileText,
-    Target,
-    AlertTriangle,
-    ChevronRight,
-} from 'lucide-react';
+import { Zap, Brain, Shield, Clock, DollarSign, BarChart3, ChevronDown, Sparkles, Target, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { CyberInput, CyberButton, CyberCard, CyberTextarea, CyberSelect, CyberLabel } from './ui/CyberComponents';
 
-// Validation schema
-const schema = z.object({
-    symbol: z.string().min(1, 'Select a symbol'),
-    timeframe: z.string().min(1, 'Select timeframe'),
-    limit: z.number().min(50).max(1000),
-    initial_capital: z.number().min(100),
-    strategy: z.string(),
-    sma_fast: z.number().min(2).max(50),
-    sma_slow: z.number().min(10).max(200),
-    // 3-Prompt Structure
-    generalInfo: z.string().optional(),
-    executionDetails: z.string().optional(),
-    constraints: z.string().optional(),
-});
-
-type FormData = z.infer<typeof schema>;
-
-const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
-
-type TabId = 'general' | 'execution' | 'constraints';
-
-interface Tab {
-    id: TabId;
-    label: string;
-    icon: React.ElementType;
-    placeholder: string;
-    priority: string;
-}
-
-const tabs: Tab[] = [
-    {
-        id: 'general',
-        label: 'Genel Strateji',
-        icon: FileText,
-        placeholder: 'Stratejinizi genel hatlarıyla açıklayın...\n\nÖrnek:\n- Trend takip stratejisi\n- Momentum bazlı giriş\n- 4 saatlik grafik üzerinde çalışır',
-        priority: 'Context',
-    },
-    {
-        id: 'execution',
-        label: 'İşlem Detayları',
-        icon: Target,
-        placeholder: 'Entry, Exit, Stop Loss ve Risk/Reward detayları...\n\nÖrnek:\n- Entry: RSI 30 altında ve fiyat destek seviyesinde\n- Exit: RSI 70 üstünde veya %10 kar\n- Stop Loss: Entry altında %2\n- Risk/Reward: 1:3',
-        priority: 'Logic',
-    },
-    {
-        id: 'constraints',
-        label: 'Kısıtlamalar',
-        icon: AlertTriangle,
-        placeholder: 'Backtest için kesin kurallar ve kısıtlamalar...\n\n⚠️ BU ALAN EN YÜKSEK ÖNCELİĞE SAHİPTİR\n\nÖrnek:\n- Stop Loss kesinlikle %2 olmalı\n- Gün içi 3\'ten fazla işlem açılmamalı\n- Hafta sonu işlem yapılmamalı',
-        priority: 'HIGHEST',
-    },
+const TIMEFRAMES = [
+    { value: '1m', label: '1 Minute' },
+    { value: '5m', label: '5 Minutes' },
+    { value: '15m', label: '15 Minutes' },
+    { value: '1h', label: '1 Hour' },
+    { value: '4h', label: '4 Hours' },
+    { value: '1d', label: '1 Day' },
 ];
 
+const EXAMPLE_GENERAL = `Trading BTC/USDT on 1h timeframe.
+Looking for momentum-based entries during high volume periods.`;
+
+const EXAMPLE_DETAILS = `Entry: RSI crosses above 30 from oversold + price above EMA(21)
+Exit: RSI reaches 70 or price drops below EMA(21)
+Take profit at 2:1 reward-risk ratio`;
+
+const EXAMPLE_CONSTRAINTS = `Maximum 3 concurrent positions
+Stop loss mandatory: 1.5% below entry
+Minimum 4 hour gap between trades`;
+
 export default function StrategyInput() {
-    const { symbols, strategyParams, setStrategyParams, fetchSymbols, runBacktest } = useAppStore();
-    const [activeTab, setActiveTab] = useState<TabId>('general');
+    const { strategyParams, setStrategyParams, symbols, fetchSymbols, runBacktest, isLoading, error, clearError } = useAppStore();
+    const [expandedSection, setExpandedSection] = useState<string | null>('general');
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-        watch,
-    } = useForm<FormData>({
-        resolver: zodResolver(schema),
-        defaultValues: {
-            ...strategyParams,
-            generalInfo: '',
-            executionDetails: '',
-            constraints: '',
-        },
-    });
+    useEffect(() => { fetchSymbols(); }, [fetchSymbols]);
 
-    useEffect(() => {
-        fetchSymbols();
-    }, [fetchSymbols]);
-
-    const onSubmit = (data: FormData) => {
-        setStrategyParams({
-            ...data,
-            // Store prompts for Chaos AI
-        });
-        runBacktest();
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        await runBacktest();
     };
 
-    const watchedValues = watch();
+    const toggleSection = (section: string) => {
+        setExpandedSection(expandedSection === section ? null : section);
+    };
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="w-full max-w-4xl mx-auto"
+            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+            className="w-full max-w-5xl mx-auto"
         >
             {/* Header */}
-            <div className="text-center mb-6">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-violet-200 to-cyan-200 bg-clip-text text-transparent mb-2">
-                    Chaos AI Strategy Composer
-                </h1>
-                <p className="text-gray-400 text-sm">3-Layer Input System • Constraint Priority Architecture</p>
+            <div className="text-center mb-8">
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="inline-flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/20 border border-violet-500/30 flex items-center justify-center">
+                        <Brain className="w-6 h-6 text-violet-400" />
+                    </div>
+                    <div className="text-left">
+                        <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-cyan-400 to-violet-400">
+                            Chaos AI Strategy Composer
+                        </h1>
+                        <p className="text-xs text-gray-500 font-mono">Universal Logic Executor v0.2</p>
+                    </div>
+                </motion.div>
             </div>
 
-            {/* Form Card */}
-            <motion.form
-                onSubmit={handleSubmit(onSubmit)}
-                className="relative rounded-2xl bg-gradient-to-br from-gray-900/90 to-gray-800/70 backdrop-blur-xl border border-gray-700/50 shadow-2xl overflow-hidden"
-            >
-                {/* Top Bar - Market Settings */}
-                <div className="p-4 bg-gray-800/50 border-b border-gray-700/50">
-                    <div className="grid grid-cols-4 gap-3">
-                        {/* Symbol */}
-                        <div>
-                            <label className="flex items-center gap-1 text-xs font-medium text-gray-400 mb-1">
-                                <TrendingUp className="w-3 h-3" />
-                                Trading Pair
-                            </label>
-                            <select
-                                {...register('symbol')}
-                                className="w-full px-3 py-2 text-sm bg-gray-900/80 border border-gray-600/50 rounded-lg text-white focus:border-violet-500 transition-all"
-                            >
-                                {symbols.length > 0 ? (
-                                    symbols.slice(0, 50).map((s) => (
-                                        <option key={s} value={s}>{s}</option>
-                                    ))
-                                ) : (
-                                    <>
-                                        <option value="BTC/USDT">BTC/USDT</option>
-                                        <option value="ETH/USDT">ETH/USDT</option>
-                                    </>
-                                )}
-                            </select>
+            {/* Error Banner */}
+            <AnimatePresence>
+                {error && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mb-6">
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3">
+                            <AlertTriangle className="w-5 h-5 text-red-400" />
+                            <p className="text-sm text-red-300 flex-1">{error}</p>
+                            <button onClick={clearError} className="text-red-400 hover:text-red-300">✕</button>
                         </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
-                        {/* Timeframe */}
-                        <div>
-                            <label className="flex items-center gap-1 text-xs font-medium text-gray-400 mb-1">
-                                <Clock className="w-3 h-3" />
-                                Timeframe
-                            </label>
-                            <select
-                                {...register('timeframe')}
-                                className="w-full px-3 py-2 text-sm bg-gray-900/80 border border-gray-600/50 rounded-lg text-white focus:border-cyan-500 transition-all"
-                            >
-                                {timeframes.map((tf) => (
-                                    <option key={tf} value={tf}>{tf}</option>
-                                ))}
-                            </select>
+            <form onSubmit={handleSubmit}>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    {/* Left Column - Market Config */}
+                    <CyberCard variant="elevated" className="lg:col-span-1">
+                        <CyberLabel icon={<BarChart3 className="w-4 h-4" />}>Market Config</CyberLabel>
+                        <div className="space-y-6">
+                            <CyberSelect label="Trading Pair" value={strategyParams.symbol} onChange={(e) => setStrategyParams({ symbol: e.target.value })} options={symbols.map(s => ({ value: s, label: s }))} />
+                            <CyberSelect label="Timeframe" value={strategyParams.timeframe} onChange={(e) => setStrategyParams({ timeframe: e.target.value })} options={TIMEFRAMES} />
+                            <CyberInput label="Historical Candles" type="number" value={strategyParams.limit} onChange={(e) => setStrategyParams({ limit: parseInt(e.target.value) || 500 })} icon={<Clock className="w-4 h-4" />} />
+                            <CyberInput label="Initial Capital" type="number" value={strategyParams.initial_capital} onChange={(e) => setStrategyParams({ initial_capital: parseFloat(e.target.value) || 10000 })} icon={<DollarSign className="w-4 h-4" />} />
                         </div>
-
-                        {/* Capital */}
-                        <div>
-                            <label className="flex items-center gap-1 text-xs font-medium text-gray-400 mb-1">
-                                <DollarSign className="w-3 h-3" />
-                                Capital
-                            </label>
-                            <input
-                                type="number"
-                                {...register('initial_capital', { valueAsNumber: true })}
-                                className="w-full px-3 py-2 text-sm bg-gray-900/80 border border-gray-600/50 rounded-lg text-white font-mono focus:border-emerald-500 transition-all"
-                            />
-                        </div>
-
-                        {/* Candles */}
-                        <div>
-                            <label className="flex items-center gap-1 text-xs font-medium text-gray-400 mb-1">
-                                Candles
-                            </label>
-                            <input
-                                type="number"
-                                {...register('limit', { valueAsNumber: true })}
-                                min={50}
-                                max={1000}
-                                className="w-full px-3 py-2 text-sm bg-gray-900/80 border border-gray-600/50 rounded-lg text-white font-mono focus:border-orange-500 transition-all"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Date Range Selection */}
-                    <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-700/30">
-                        <div>
-                            <label className="flex items-center gap-1 text-xs font-medium text-gray-400 mb-1">
-                                📅 Start Date
-                            </label>
-                            <input
-                                type="date"
-                                onChange={(e) => {
-                                    const timestamp = e.target.value ? Math.floor(new Date(e.target.value).getTime() / 1000) : undefined;
-                                    setStrategyParams({ start_date: timestamp });
-                                }}
-                                className="w-full px-3 py-2 text-sm bg-gray-900/80 border border-gray-600/50 rounded-lg text-white focus:border-violet-500 transition-all"
-                            />
-                        </div>
-                        <div>
-                            <label className="flex items-center gap-1 text-xs font-medium text-gray-400 mb-1">
-                                📅 End Date
-                            </label>
-                            <input
-                                type="date"
-                                onChange={(e) => {
-                                    const timestamp = e.target.value ? Math.floor(new Date(e.target.value).getTime() / 1000) : undefined;
-                                    setStrategyParams({ end_date: timestamp });
-                                }}
-                                className="w-full px-3 py-2 text-sm bg-gray-900/80 border border-gray-600/50 rounded-lg text-white focus:border-violet-500 transition-all"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Tab Navigation */}
-                <div className="flex border-b border-gray-700/50">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 px-4 py-3 flex items-center justify-center gap-2 text-sm font-medium transition-all ${activeTab === tab.id
-                                ? 'text-white bg-gray-800/50 border-b-2 border-violet-500'
-                                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/30'
-                                }`}
-                        >
-                            <tab.icon className={`w-4 h-4 ${tab.id === 'constraints' ? 'text-yellow-400' : ''
-                                }`} />
-                            {tab.label}
-                            {tab.id === 'constraints' && (
-                                <span className="px-1.5 py-0.5 text-[10px] bg-yellow-500/20 text-yellow-400 rounded">
-                                    ÖNCELİK
-                                </span>
-                            )}
-                        </button>
-                    ))}
-                </div>
-
-                {/* Tab Content */}
-                <div className="p-4">
-                    <AnimatePresence mode="wait">
-                        {tabs.map((tab) => (
-                            activeTab === tab.id && (
-                                <motion.div
-                                    key={tab.id}
-                                    initial={{ opacity: 0, x: 10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: -10 }}
-                                    transition={{ duration: 0.15 }}
-                                >
-                                    <div className="mb-2 flex items-center justify-between">
-                                        <span className="text-xs text-gray-500">
-                                            {tab.id === 'general' && 'Stratejinizi genel hatlarıyla tanımlayın'}
-                                            {tab.id === 'execution' && 'Giriş, çıkış ve risk yönetimi kuralları'}
-                                            {tab.id === 'constraints' && '⚠️ Bu alandaki kurallar AI tarafından DEĞİŞTİRİLEMEZ'}
-                                        </span>
-                                        <span className={`text-[10px] px-2 py-0.5 rounded ${tab.priority === 'HIGHEST'
-                                            ? 'bg-yellow-500/20 text-yellow-400'
-                                            : 'bg-gray-700/50 text-gray-400'
-                                            }`}>
-                                            {tab.priority}
-                                        </span>
-                                    </div>
-                                    <textarea
-                                        {...register(
-                                            tab.id === 'general' ? 'generalInfo' :
-                                                tab.id === 'execution' ? 'executionDetails' : 'constraints'
-                                        )}
-                                        placeholder={tab.placeholder}
-                                        rows={8}
-                                        className={`w-full px-4 py-3 bg-gray-900/60 border rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 transition-all resize-none ${tab.id === 'constraints'
-                                            ? 'border-yellow-500/30 focus:border-yellow-500 focus:ring-yellow-500/20'
-                                            : 'border-gray-600/50 focus:border-violet-500 focus:ring-violet-500/20'
-                                            }`}
-                                    />
-                                </motion.div>
-                            )
-                        ))}
-                    </AnimatePresence>
-                </div>
-
-                {/* SMA Quick Settings (fallback) */}
-                <div className="px-4 pb-4">
-                    <div className="p-3 rounded-lg bg-gray-800/30 border border-gray-700/30">
-                        <p className="text-xs text-gray-500 mb-2">Fallback SMA Crossover (Text input boşsa kullanılır)</p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="flex items-center gap-2">
-                                <label className="text-xs text-gray-400">Fast SMA:</label>
-                                <input
-                                    type="number"
-                                    {...register('sma_fast', { valueAsNumber: true })}
-                                    className="w-16 px-2 py-1 text-xs bg-gray-900/60 border border-gray-600/50 rounded text-white font-mono"
-                                />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <label className="text-xs text-gray-400">Slow SMA:</label>
-                                <input
-                                    type="number"
-                                    {...register('sma_slow', { valueAsNumber: true })}
-                                    className="w-16 px-2 py-1 text-xs bg-gray-900/60 border border-gray-600/50 rounded text-white font-mono"
-                                />
+                        <div className="mt-6 pt-6 border-t border-white/10">
+                            <div className="grid grid-cols-2 gap-3 text-center">
+                                <div className="bg-black/30 rounded-lg p-3">
+                                    <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Candles</p>
+                                    <p className="text-lg font-mono text-cyan-400">{strategyParams.limit}</p>
+                                </div>
+                                <div className="bg-black/30 rounded-lg p-3">
+                                    <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Capital</p>
+                                    <p className="text-lg font-mono text-emerald-400">${strategyParams.initial_capital.toLocaleString()}</p>
+                                </div>
                             </div>
                         </div>
+                    </CyberCard>
+
+                    {/* Right Column - Strategy Prompts */}
+                    <div className="lg:col-span-2 space-y-4">
+                        <PromptSection id="general" title="General Strategy Info" subtitle="Trading strategy overview" icon={<Sparkles className="w-4 h-4" />} color="violet" expanded={expandedSection === 'general'} onToggle={() => toggleSection('general')}>
+                            <CyberTextarea value={strategyParams.general_info} onChange={(e) => setStrategyParams({ general_info: e.target.value })} placeholder={EXAMPLE_GENERAL} rows={4} />
+                        </PromptSection>
+
+                        <PromptSection id="details" title="Execution Details" subtitle="Entry/Exit logic" icon={<Target className="w-4 h-4" />} color="cyan" expanded={expandedSection === 'details'} onToggle={() => toggleSection('details')}>
+                            <CyberTextarea value={strategyParams.execution_details} onChange={(e) => setStrategyParams({ execution_details: e.target.value })} placeholder={EXAMPLE_DETAILS} rows={5} />
+                        </PromptSection>
+
+                        <PromptSection id="constraints" title="Constraints" subtitle="Risk management (HIGHEST PRIORITY)" icon={<Shield className="w-4 h-4" />} color="amber" expanded={expandedSection === 'constraints'} onToggle={() => toggleSection('constraints')} priority>
+                            <CyberTextarea value={strategyParams.constraints} onChange={(e) => setStrategyParams({ constraints: e.target.value })} placeholder={EXAMPLE_CONSTRAINTS} rows={4} />
+                        </PromptSection>
                     </div>
                 </div>
 
                 {/* Submit */}
-                <div className="p-4 bg-gray-800/30 border-t border-gray-700/50">
-                    <motion.button
-                        type="submit"
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                        className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-600 text-white font-semibold flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-violet-500/20 transition-all"
-                    >
-                        <Rocket className="w-5 h-5" />
-                        Run Chaos Backtest
-                        <ChevronRight className="w-4 h-4" />
-                    </motion.button>
-
-                    <p className="text-center text-xs text-gray-500 mt-2">
-                        {watchedValues.symbol} • {watchedValues.timeframe} • {watchedValues.limit} candles
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex flex-col items-center gap-4">
+                    <CyberButton type="submit" size="lg" loading={isLoading} glow={!isLoading} className="w-full max-w-md">
+                        <Zap className="w-5 h-5" />
+                        Execute Chaos AI Backtest
+                    </CyberButton>
+                    <p className="text-xs text-gray-500 text-center max-w-md">
+                        Powered by real market data from Binance via CCXT. <span className="text-violet-400">No mock data.</span>
                     </p>
+                </motion.div>
+            </form>
+        </motion.div>
+    );
+}
+
+// ============================================================
+// PROMPT SECTION
+// ============================================================
+interface PromptSectionProps {
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: React.ReactNode;
+    color: 'violet' | 'cyan' | 'amber';
+    expanded: boolean;
+    onToggle: () => void;
+    priority?: boolean;
+    children: React.ReactNode;
+}
+
+function PromptSection({ title, subtitle, icon, color, expanded, onToggle, priority, children }: PromptSectionProps) {
+    const styles = {
+        violet: { icon: 'text-violet-400', border: 'border-violet-500/30', bg: 'bg-violet-500/10' },
+        cyan: { icon: 'text-cyan-400', border: 'border-cyan-500/30', bg: 'bg-cyan-500/10' },
+        amber: { icon: 'text-amber-400', border: 'border-amber-500/30', bg: 'bg-amber-500/10' },
+    }[color];
+
+    return (
+        <motion.div layout className={`bg-black/40 backdrop-blur-xl border ${styles.border} rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg`}>
+            <button type="button" onClick={onToggle} className="w-full flex items-center justify-between p-4 text-left">
+                <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl ${styles.bg} border ${styles.border} flex items-center justify-center`}>
+                        <span className={styles.icon}>{icon}</span>
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-white">{title}</h3>
+                            {priority && <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 rounded-full border border-amber-500/30">Priority</span>}
+                        </div>
+                        <p className="text-xs text-gray-500">{subtitle}</p>
+                    </div>
                 </div>
-            </motion.form>
+                <motion.div animate={{ rotate: expanded ? 180 : 0 }} className="text-gray-500">
+                    <ChevronDown className="w-5 h-5" />
+                </motion.div>
+            </button>
+            <AnimatePresence>
+                {expanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }}>
+                        <div className="px-4 pb-4">{children}</div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.div>
     );
 }
